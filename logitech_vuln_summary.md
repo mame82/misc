@@ -221,6 +221,8 @@ to obtain the keyboard layout used by the target, as the shortcut based approach
 
 Logitech only confirmed to fix the key exteaction vulnerability. There is no information on planned Mitigations for the key filter bypass.
 
+Update July 3rd, 2019: The announced Logitech patch also includes further measures to mitigate potential plain injections (those measures will then be effective on R500 and Mx Anywhere mouse)
+
 Devices known to be affected are:
 - Logitech R500
 - Logitech SPOTLIGHT
