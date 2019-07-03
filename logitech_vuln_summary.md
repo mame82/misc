@@ -183,7 +183,7 @@ decrypt keyboard input remotely (passive). This applies to all encrypted Unifyin
 injection attack, as the address is pre-known from the extraction (targeted attack possible, actual device doesn't have 
 to be in range - only the receiver) 
 
-Logitech confirmed, that no patch will be provided for this new vulnerability in August 2019.
+Logitech confirmed, that a patch will be provided for this new vulnerability in August 2019.
 
 ### References
 
@@ -218,6 +218,8 @@ otherwise the devices act as standard keyboard.
 On Microsoft Windows operating systems, this "key blacklisting" protection could be bypassed, using (not filtered) 
 shortcuts, which produce arbitrary ASCII characters as output. From an attacker's perspective this eliminates the need
 to obtain the keyboard layout used by the target, as the shortcut based approach is language independent.  
+
+Logitech only confirmed to fix the key exteaction vulnerability. There is no information on planned Mitigations for the key filter bypass.
 
 Devices known to be affected are:
 - Logitech R500
