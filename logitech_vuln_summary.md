@@ -265,3 +265,8 @@ This issue does not lead to eavesdropping of already paired keyboards.
     - Forced pairing: https://twitter.com/mame82/status/1086266411549364224
     - Pair flooding: https://twitter.com/mame82/status/1086253615168344069
   
+# Disclosure
+
+Planned timeline on Twitter:
+
+https://twitter.com/mame82/status/1144356418130194432
