@@ -1,3 +1,5 @@
+The repo holding all the disclosure material for the research is published here: https://github.com/mame82/UnifyingVulnsDisclosureRepo
+
 # Summary / Overview of known Logitech wireless peripheral vulnerabilities
 
 There has been a ton of research on wireless input devices using proprietary 2.4 GHz radio technology.
