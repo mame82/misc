@@ -2,17 +2,6 @@
 Frida test script for privacy related tracing of Android apps
 */
 
-var printBacktrace = function() {
-  Java.perform(function() {
-    var android_util_Log = Java.use("android.util.Log"),
-      java_lang_Exception = Java.use("java.lang.Exception")
-    // getting stacktrace by throwing an exception
-    console.log(
-      android_util_Log.getStackTraceString(java_lang_Exception.$new())
-    )
-  })
-}
-
 // from https://github.com/iddoeldor/frida-snippets
 var Color = {
   RESET: "\x1b[39;49;00m",
@@ -56,6 +45,38 @@ var LOG = function(input, kwargs) {
   if (kwargs["c"])
     input = colorPrefix + kwargs["c"] + colorSuffix + input + Color.RESET
   console[logLevel](input)
+}
+
+var getStacktrace = function() {
+  //Java.perform(function() {
+  var android_util_Log = Java.use("android.util.Log")
+  var java_lang_Exception = Java.use("java.lang.Exception")
+  var trace = android_util_Log.getStackTraceString(java_lang_Exception.$new())
+  var caller =
+    "Called by: " +
+    Java.use("java.lang.Exception")
+      .$new()
+      .getStackTrace()
+      .toString()
+      .split(",")[1] +
+    "\n"
+  trace = caller + trace
+  return trace
+  //})
+}
+
+var printBacktrace = function() {
+  Java.perform(function() {
+    console.log(getStacktrace())
+  })
+}
+
+var printBacktraceIfReflectionUsed = function() {
+  Java.perform(function() {
+    var trace = getStacktrace()
+    if (trace.includes("at java.lang.reflect"))
+      LOG("stacktrace hints REFLECTION usage\n" + trace, { c: Color.Light.Red })
+  })
 }
 
 var findLoaderForClass = function(className) {
@@ -141,6 +162,7 @@ Java.perform(function() {
   }
 })
 
+// HTTP
 Java.perform(function() {
   var logSettings = { c: Color.Light.Green }
   var clazz = Java.use("java.net.HttpURLConnection")
@@ -151,32 +173,99 @@ Java.perform(function() {
     //	printBacktrace();
     return clazz.$init.apply(this, arguments)
   }
+
+  // TikTok only
+  /*
+  var clazzTTNetCronetEngineBase = Java.use(
+    "com.ttnet.org.chromium.net.impl.CronetEngineBase"
+  )
+
+  clazzTTNetCronetEngineBase.newUrlRequestBuilder.overloads[0].implementation = function() {
+    var res = clazzTTNetCronetEngineBase.newUrlRequestBuilder.apply(
+      this,
+      arguments
+    )
+    var out =
+      "(TikTok) CronetEngineBase.newUrlRequestBuilder()\n-- URL: " +
+      arguments[0]
+    LOG(out, logSettings)
+    return res
+  }
+  */
 })
 
 // android.telephony.TelephonyManager.getTelephonyProperty(int, java.lang.String, java.lang.String)
 Java.perform(function() {
   var logSettings = { c: Color.Light.Yellow }
   var clazz = Java.use("android.telephony.TelephonyManager")
+
   clazz.getTelephonyProperty.overload(
     "int",
     "java.lang.String",
     "java.lang.String"
   ).implementation = function(phoneId, property, defaultVal) {
     var res = clazz.getTelephonyProperty.apply(this, arguments)
-
-    LOG(
+    var out =
       "GetTelephonyProperty(phoneID=" +
-        phoneId +
-        " property='" +
-        property +
-        "' defaultVal='" +
-        defaultVal +
-        "')",
-      logSettings
-    )
-    LOG("\t=> '" + res.toString() + "'", logSettings)
+      phoneId +
+      " property='" +
+      property +
+      "' defaultVal='" +
+      defaultVal +
+      "')\n"
 
-    //	printBacktrace();
+    out += "\t=> '" + res + "' [" + typeof res + "]\n"
+    LOG(out, logSettings)
+
+    //printBacktrace()
+    return res
+  }
+
+  /*
+  clazz.getTelephonyProperty.implementation = function() {
+    var res = clazz.getTelephonyProperty.apply(this, arguments)
+    var phoneId = arguments[0]
+    var property = arguments[1]
+    var defaultVal = arguments[2]
+    var out =
+      "GetTelephonyProperty(phoneID=" +
+      phoneId +
+      " property='" +
+      property +
+      "' defaultVal='" +
+      defaultVal +
+      "')\n"
+
+    out += "\t=> '" + res + "' [" + typeof res + "]\n"
+    LOG(out, logSettings)
+
+    //printBacktrace()
+    return res
+  }
+  */
+})
+
+// NetworkInfo
+Java.perform(function() {
+  var logSettings = { c: Color.Light.Purple }
+  var clazzNetworkInfo = Java.use("android.net.NetworkInfo")
+
+  // Note: used by com.bytedance.common.utility.l.d()
+  // Used by TikTok to determine connection type (send in HTTP requests as param 'ac' and 'ac2')
+  clazzNetworkInfo.getType.implementation = function() {
+    var out = "NetworkInfo."
+    var res = clazzNetworkInfo.getType.apply(this, arguments)
+    out += "getType => " + res + " (" + this.getTypeName() + ")"
+
+    LOG(out, logSettings)
+    return res
+  }
+
+  clazzNetworkInfo.getState.implementation = function() {
+    var out = "NetworkInfo."
+    var res = clazzNetworkInfo.getState.apply(this, arguments)
+    out += "getState => " + res
+    LOG(out, logSettings)
     return res
   }
 })
@@ -218,12 +307,15 @@ Java.perform(function() {
     return res
   }
 
+  // Note: used by com.bytedance.common.utility.l.d() to determine of WiFi is 'wifi5g'
+  // Used by TikTok to distinguish 2.4G and 5G WiFi (send in HTTP requests as param 'ac2')
   clazzWifiInfo.getFrequency.implementation = function() {
     var out = "WifiInfo."
     var res = clazzWifiInfo.getFrequency.apply(this, arguments)
     out += "getFrequency => " + res
     LOG(out, logSettings)
-    return res
+    //return res
+    return 5200
   }
 
   clazzWifiInfo.getSupplicantState.implementation = function() {
@@ -420,5 +512,141 @@ Java.perform(function() {
 
     LOG(out, logSettings)
     return res
+  }
+})
+
+// SystemProperties
+Java.perform(function() {
+  var clazzSystemProperties = Java.use("android.os.SystemProperties")
+  var logSettings = { c: Color.Light.Blue }
+
+  clazzSystemProperties.get.overload(
+    "java.lang.String"
+  ).implementation = function(key) {
+    var res = this.get(key)
+    var out = "SystemProperties.get(" + key + ")\n"
+    out += "\t=> '" + res + "'\n"
+
+    /*
+    if (key === "persist.sys.timezone") out += getStacktrace()
+    if (key === "ro.build.display.id") out += getStacktrace() // print stack trace if android build ID is requested
+    if (key === "ro.product.cpu.abi") out += getStacktrace() // print stack trace if CPU ABI is requested
+    if (key === "ro.product.cpu.abi2") out += getStacktrace() // print stack trace if CPU ABI is requested
+    */
+
+    LOG(out, logSettings)
+
+    printBacktraceIfReflectionUsed()
+    return res
+  }
+})
+
+// TimeZone
+/*
+Java.perform(function() {
+  var clazzTimeZone = Java.use("java.util.TimeZone")
+  var logSettings = { c: Color.Light.Green }
+
+  clazzTimeZone.getDefault.implementation = function() {
+    var res = clazzTimeZone.getDefault()
+    var out = "TimeZone.getDefault()\n"
+    out += "\t=> '" + res + "'\n"
+
+    //out += getStacktrace()
+
+    LOG(out, logSettings)
+
+    return res
+  }
+
+  clazzTimeZone.getDefaultRef.implementation = function() {
+    var res = clazzTimeZone.getDefaultRef()
+    var out = "TimeZone.getDefaultRef()\n"
+    out += "\t=> '" + res + "'\n"
+
+    //out += getStacktrace()
+
+    LOG(out, logSettings)
+
+    return res
+  }
+})
+*/
+
+// Reflection
+
+// Note: Hooking reflective Java classes crashes (f.e. `Class.forName()`, `Method.invoke()`)
+Java.perform(function() {
+  //  Java.deoptimizeEverything()
+
+  var logSettings = { c: Color.Light.Red }
+  var clazzMethod = Java.use("java.lang.reflect.Method")
+  var clazzClass = Java.use("java.lang.Class")
+
+  /*
+
+  // This interception leads to crashes (for TikTok)
+  // Also, with this hook enabled, TikTok crashes if Frida spawns the App itself (early hooking)
+  // ... attaching to the running App leads to a crash at some point, but output works up to this point.
+  clazzMethod.invoke.implementation = function() {
+    var objInstance = arguments[0]
+    var methodArgs = arguments[1]
+    var res = clazzMethod.invoke.apply(this, arguments)
+    var out = "reflect.Method.invoke(" + JSON.stringify(arguments) + ")\n"
+    out += "    Class: '" + this.getDeclaringClass() + "'\n"
+    out += "    Method name: '" + this.getName() + "'\n"
+    if (objInstance != null) out += "    Instance: '" + objInstance + "'\n"
+    if (methodArgs != null) out += "    Arguments: '" + methodArgs + "'\n"
+    out += "\t=> '" + res + "'\n"
+    LOG(out, logSettings)
+
+    return res
+  }
+
+  // This interception leads to crashes (for TikTok)
+  // Also, with this hook enabled, TikTok crashes if Frida spawns the App itself (early hooking)
+  // ... attaching to the running App leads to a crash at some point, but output works up to this point.
+  clazzClass.forName.overload("java.lang.String").implementation = function() {
+    var res = clazzClass.forName.apply(this, arguments)
+    var out = "Class.forName(" + JSON.stringify(arguments) + ")\n"
+    out += "\t=> '" + res + "'\n"
+    LOG(out, logSettings)
+
+    return res
+  }
+
+  var clazzClass = Java.use("java.lang.Class")
+  clazzClass.forName.overload(
+    "java.lang.String",
+    "boolean",
+    "java.lang.ClassLoader"
+  ).implementation = function() {
+    var res = clazzClass.forName.apply(this, arguments)
+    var out = "Class.forName(" + JSON.stringify(arguments) + ")\n"
+    out += "\t=> '" + res + "'\n"
+    LOG(out, logSettings)
+
+    return res
+  }
+
+  */
+})
+
+// Untested
+Java.perform(function() {
+  Java.use("android.webkit.WebView").loadUrl.overload(
+    "java.lang.String"
+  ).implementation = function(s) {
+    send(s.toString())
+    this.loadUrl.overload("java.lang.String").call(this, s)
+  }
+})
+
+Java.perform(function() {
+  send("--> isDebuggerConnected - Bypass Loaded")
+  var Debug = Java.use("android.os.Debug")
+  Debug.isDebuggerConnected.implementation = function() {
+    send("isDebuggerConnected() --> returned false")
+    return false
   }
 })
