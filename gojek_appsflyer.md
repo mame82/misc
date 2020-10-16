@@ -67,7 +67,8 @@ at runtime, the whole class `com.appsflyer.internal.j` is not included in the de
 Also early instrumentaion would fail, as the class is loaded at runtime.
 
 I placed a small frida-trace hook on `com.appsflyer.internal.j.ı`, to get some insights on the ClassLoader
-in use:
+in use (*the process has to be running, when frida-trace is attached as the class does not exist
+at application start*):
 
 ```
   onEnter: function (log, args, state) {
@@ -81,8 +82,7 @@ in use:
 
 ```
 
-Unsuprisingly, the respective class is loaded by an in-memory ClassLoader, which itself was loaded from
-a buffer in RAM. 
+Unsuprisingly, the respective class is loaded by an in-memory ClassLoader, which itself was loaded at runtime (constructor can not be hooked with early instrumentation). 
 
 Below, an excerpt of the output from the hook:
 
@@ -217,7 +217,7 @@ AADiYgAA5WIAAOpiAADtYgAAp2YAALFmAAC5ZgAAvWYAAMBmAADDZgAAxmYAAMpmAADWZgAA2WYA
 ...
 ```
 
-Each base64 string represents a raw dex-class.
+Each base64 string represents a raw dex class package.
 
 As already mentioned, I just copied each b64 string and pasted it back to a file.
 
