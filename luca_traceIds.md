@@ -156,7 +156,7 @@ For each polling request (every 3 seconds) a set of device-generated 'trace IDs'
 
 **To sum up: If the same 'trace IDs' are used across multiple requests, they could correlated to the same unique user device along with the meta-data contained in the request, even if the device IP address has changed throughout successive requests.**
 
-_Note: I was using the terms `user` and `device` interchangeably, because the user's `tracing secret` from which the IDs are generated, is unique per device. While calculated `trace IDs` are related to the luca-user, they do not reveal any contact data. Yet, it should be clear that `trace IDs` meet all requirements to serve as unique device identifier. The circumstance that many `trace IDs` could be generated per device, doe not change this fact!_
+_Note: I was using the terms `user` and `device` interchangeably, because the user's `tracing secret` from which the IDs are generated, is unique per device. While calculated `trace IDs` are related to the luca-user, they do not reveal any contact data. Yet, it should be clear that `trace IDs` meet all requirements to serve as unique device identifier. The circumstance that many `trace IDs` could be generated per device, does not change this fact!_
 
 The `trace ID set` which gets sent every 3 seconds, continuously grows, as a newly generated `trace ID` is added every 60 seconds (the interval in which trace IDs are re-generated). For the tracing secret, the documentation states the following:
 
@@ -191,7 +191,7 @@ The following additional facts are worth noting, for `trace ID sets` transmitted
 - no invalid trace IDs are introduced (no artificial error or bias is introduced)
 - chronological order of trace IDs (last ID is always the one used, when the QR code gets scanned for self check-in)
 
-So at which point does this "tracking" behavior change? It changes once a self check-in occurs!
+So at which point in time does this "trace ID set" change? It changes once a check-in occurs!
 
 ## 4. Self check-in
 
@@ -211,9 +211,9 @@ To further analyse the polling behavior, it was necessary to do a `self check-in
 }
 ```
 
-In case of a "scanner check-in" this data would be sent to the luca-backend by the "scanner frontend", in case of "self check-in" this request gets sent by the user device. Distinguishing the two cases does not matter for my considerations, as the data always involves the `tracie ID` used for the check-in. Remember: The backend already learned about how `trace IDs` are associated to a user device, even if the IP-Address changes or the device is rebooted.
+In case of a "scanner check-in" this data would be sent to the luca-backend by the "scanner frontend", in case of "self check-in" this request gets sent by the user device. Distinguishing the two cases does not matter for my considerations, as the data always involves the specific `trace ID` used for the check-in (which is already tied to the user device which generated it). Remember: The backend already learned about how `trace IDs` are associated to a user device, even if the IP-Address changes or the device is rebooted.
 
-The next step is the one, which is actually describe for the [guest check-in process](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process):
+The next step is the one, which is described for the [guest check-in process](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process) (polling should only happen after check-in):
 
 ```
 Therefore, the Guest App polls the Luca Server via an unauthenticated connection. This inquires whether a Check-In was uploaded by a Scanner Frontend with a trace ID that the Guest App recently generated. Once this inquiry polling request is acknowledged by the Luca Server, the Guest App assumes that a successful QR code scan and Check-In was performed. Some UI feedback is provided to the Guest.
@@ -255,9 +255,9 @@ While previous requests received an empty JSON array `[]` in response the post-c
 ]
 ```
 
-So the last `trace ID` for which the device was polling, is now associated to a `location ID`. The fact, that the last `trace ID` in the set used for polling requests, was also the one used for the actual check-in, does not even matter. This is, because the response includes the exact `trace ID` in use - associated to the `location ID`. It is out of question, if the luca-backend has learned about which device is checked-in to which location, as it provides the plain information itself.
+So the last `trace ID` for which the device was polling, is now associated to a `location ID`. The fact, that the last `trace ID` in the set used for polling requests, was also the one used for the actual check-in, does not even matter. This is, because the response itself includes the exact `trace ID` used to check-in, but now, the `trace ID` associated to the `locationID`. It is out of question, if the luca-backend has learned about which device is checked-in to which location, as it provides the plain information itself.
 
-Before moving on, I want to define the phrase `"...the luca-backend learned..."` more precisely: All observations are based on monitoring legacy HTTP traffic between the app and the backend. This involves interception of the underlying TLS connection. As the luca-backend has to terminate the TLS connection at some point, I am not only talking about identifiers and classifiers learned by the luca-backend operators. The same information is available to all intermediaries placed behind the front-facing TLS endpoint (e.g. proxies, load balancers, WAF providers etc). One could conclude, that intermediaries do not learn about the user's source IP, but this does not hold true as most intermediaries include the source IP address in additional HTTP headers, to preserve it to for actual application server (f.e. X-Forwarded-For` header). From now on, I will use the term **observer** for to describe an entity which is able to look into plain HTTP content, this **always involves luca backend operators**!
+Before moving on, I want to define the phrase `"...the luca-backend learned..."` more precisely: All observations are based on monitoring legacy HTTP traffic between the app and the backend. This involves interception of the underlying TLS connection. As the luca-backend has to terminate the TLS connection at some point, I am not only talking about identifiers and classifiers learned by the luca-backend operators. The same information is available to all intermediaries placed behind the front-facing TLS endpoint (e.g. proxies, load balancers, WAF providers etc). One could conclude, that intermediaries do not learn about the user's source IP, but this does not hold true, because most intermediaries include the requesters IP address in additional HTTP headers, to preserve it to for actual application server (f.e. `X-Forwarded-For` header). From now on, I will use the term **observer** for to describe an entity which is able to look into plain HTTP content, this **always involves luca backend operators**!
 
 Moving on...
 
@@ -293,12 +293,12 @@ Once the app received the `loactionId` for the `trace ID` which was used for che
 - checkin location, with all relevant data
 - checkin time
 
-From the request to `https://app.luca-app.de/api/v3/locations/{locationId}` alone, an observer learns (without continuosly monitoring `/traces/bulk`):
+From the single request to `https://app.luca-app.de/api/v3/locations/{locationId}` alone, an observer learns:
 
 - plain location data
 - high probability for a check-in of the requesting device (IP address, device brand, device model, OS version), because the request appears immediately after check-in
 
-Even an observer, which only monitors the request URL (f.e. a WAF protecting the endpoint, load balancers, log servers etc), could draw the conclusion that the request is associated to a check-in (of the requesting device) at this exact point in time, while the location could be derived from the URI path.
+Even if an observer is only able to monitor the request method and URL (f.e. a WAF protecting the endpoint, load balancers, log servers etc), she could draw the conclusion that the request is associated to a check-in (of the requesting device) which happened at this exact point in time. The location could be directly derived from the URI path, which includes the `locationID`.
 
 In fact, the only thing which is not known to an observer or the backend operators is the content of the `encrypted contact data` (which, again, isn't of much value, because it does not have to be valid).
 
@@ -316,11 +316,11 @@ traces3_req={
 }
 ```
 
-The data set now only includes the `trace ID` used for the most recent check-in. No new IDs are added anymore (the app generates no new QR codes, as the UI shows the checkout dialog, now).
+The data set now only includes the `trace ID` used for the most recent check-in. No new IDs are added to the set anymore (the app generates no new QR codes, as the UI shows the checkout dialog, now).
 
-Also, to be more precise, this behavior change dos not occur directly after check-in (there have already been requests with a larger `trace ID set` including the check-in `trace ID`, which received a `locationID`in response). Instead, the behavior changes after the successful request to the aforementioned endpoint `/locations/{locationId}`. This, again, allows an observer to confirm a successful check-in to the location of a previous request.
+Also, to be more precise, this behavior change dos not occur directly after check-in (there have already been requests with a larger `trace ID sets`, which included the check-in `trace ID` and received the associated `locationID` in response). Instead, the behavior changes after the successful request to the aforementioned endpoint `/locations/{locationId}`. This, again, allows an observer to confirm a successful check-in if she only monitors `/locations/{locationId}`.
 
-Also, the continuous polling of a **single** `trace ID` allows to draw the conclusion that the device is checked in into a location with this exact ID (the list would otherwise get a new `trace ID` appended after 60 seconds, while the minimum time interval before a checkout is also enforced to 60 seconds). The checkin location itself, is provided in the HTTP response each time:
+In addition, the continuous polling of a **single** `trace ID` allows to draw the conclusion that the device is checked-in into a location, using this exact `trace ID` (The `trace ID set` would otherwise get a new `trace ID` appended after 60 seconds. The minimum time interval before a possible checkout is enforced to 60 seconds, too). The check-in location itself, is provided in each HTTP response, now:
 
 ```
 [
@@ -334,7 +334,7 @@ Also, the continuous polling of a **single** `trace ID` allows to draw the concl
 ]
 ```
 
-So there is not even a need to monitor `/traces/bulk` continuously. A single bulk request, which holds a single `traceId` and receives as single `locationId` in response, could be safely assumed to indicate that the device is currently checked in to this exact location.
+So there is not even a need to monitor `/traces/bulk` continuously. A single request, which holds only one `traceId` and receives a `locationId` in response, could be safely assumed to indicate, that the device is currently checked-in to this exact location.
 
 Such a request is sent every 60 seconds, now (increased polling interval, while user is checked in to a location).
 
@@ -372,6 +372,8 @@ There is a single request, which could not be associated to a unique device, bas
    4.1 If a device is not checked-in to a location, the device polls the endpoint in a **3 second interval**, with a continuously growing set of `trace IDs`. Multiple, successive requests of the same device could be associated to each other, based on overlapping `trace IDs`, even if the IP-Address and additional classifiers are disregarded. The state of a `trace ID set` used by a participating device to poll against `/traces/bulk` even survives device a reboot.
 
    4.2 If a device is checked-in to a location, the device polls the endpoint in a **60 second interval**, with a **single** `trace ID`. This trace ID is the one, which was used to check-in to the location. The `locationID` which could be used to obtain detailed plaintext information on the location, is contained in the HTTP response (additional location information could be retrieved from other endpoints, as detailed in this document). Multiple, successive requests of the same device could be associated to each other,based on the single `trace ID`, even if the IP-Address and additional classifiers are disregarded. _Note: If a user is not checked in to a location, a request with a single `trace ID` could still occur, but the response would not contain a `locationId` - also the polling interval would be 3 seconds, not 60 seconds_
+
+It should also be noted, that the "security concept" does not clearly state that `trace IDs` are transmitted, whenever the luca app is running in foreground. If anything, it explains that the polling starts after check-in (QR code scan) and ends after UI confirmation of the check-in.
 
 ## Conclusion
 
