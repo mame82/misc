@@ -71,7 +71,7 @@ Additional notes:
 
 ## 1. Classifiers in HTTP request headers
 
-As I mostly present HTTP body data in this document, I want to make pretty clear that **each HTTP request from the luca app provides additional device classifiers to the backend**. Those classifiers are:
+As I mostly present HTTP body data in this document, I want to make pretty clear that **each HTTP request from the luca app provides additional device classifiers to the backend via request headers**. Those classifiers are:
 
 1. The Android OS version
 2. The Device Manufacturer
@@ -99,17 +99,17 @@ Connection:       Keep-Alive
 Accept-Encoding:  gzip
 ```
 
-It can not be avoided, that the luca-backend also receives the public IP-Address of the user **for each HTTP request** in addition. For most mobile data connection, the public IP-Addresses are shared by multiple users. Additional identifiers, as used in this case, greatly increase the probability to uniquely distinguish mobile devices, even if they share the same IP-Address.
+It could not be avoided that the luca-backend also receives the public IP-Address of the user **for each HTTP request**. For most mobile data connections, public IP-Addresses are shared by multiple users. Additional identifiers, as used in this case, greatly increase the probability to uniquely distinguish requesting devices, even if they share the same IP-Address.
 
-This problem of the luca architecture was covered in multiple reviews. Thus I want to focus on how 'trace IDs' could be used, to increase the probability (of identifying devices uniquely) even further.
+This problem of the luca architecture was covered in multiple reviews. Thus I want to focus on how 'trace IDs' could be used in order to increase the probability of identifying devices uniquely.
 
-For the rest of the review, I only cover HTTP body data, but it is crucial to keep in mind, that each and every request involves aforementioned classifiers and the IP-address (as identifier).
+For the rest of the review, I will only cover HTTP body data, but it is crucial to keep in mind, that each and every request involves aforementioned classifiers, the IP-address (as identifier) and a timestamp.
 
 ## 2. Communication after application startup
 
-When the application is started the first time, a user account has to be created. Once that is done, the app creates the various crypto key, including the 'tracing secret' which is only known locally.
+When the application is started the first time, a user account has to be created. Once that is done, the app creates the various crypto keys - including the 'tracing secret' - which is only known locally.
 
-After 'tracing secret' creation, the app ultimately starts to derive `trace IDs`. Those trace IDeas are re-generated every 60 seconds, as described in the documentation. The documentation is less specific, when it comes to backend-polling of `trace IDs`. The topic is touched in the process [Check-In via Mobile Phone App](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process-guest-checkin) of the documentation, which states:
+After 'tracing secret' creation, the app ultimately starts to derive `trace IDs`. Those `trace IDs` are re-generated every 60 seconds, as described in the documentation. The documentation is less specific when it comes to backend-polling of `trace IDs`. The topic is touched in the process [Check-In via Mobile Phone App](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process-guest-checkin) of the documentation, which states:
 
 ```
 This polling request might leak information about the association of a just checked-in trace ID and the identity of the Guest (directly contradicting O2). As mobile phone network typically use NAT, the fact that the Luca Server does not log any IP addresses and the connection being unauthenticated, we do accept this risk.
@@ -134,7 +134,7 @@ So let's have a look, how frequently the polling occurs, to get a better picture
 
 So when the app is running in foreground, the **endpoint is polled in a 3 second interval**.
 
-In contrast to the (not unspecific) process description in [Check-In via Mobile Phone App](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process-guest-checkin), **the polling happens all the time, not only after a check-in**. At this point in time, the app wasn't used to create even a single check-in.
+In contrast to the (not very specific) process description in [Check-In via Mobile Phone App](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process-guest-checkin), **the polling happens all the time, not only after a check-in**. Therefor the app is polling from the very beginning, even if it wasn't used to create a single check-in.
 
 What about the content of the polling requests?
 
