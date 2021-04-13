@@ -12,7 +12,7 @@ Based on the observation of network traffic between the Luca-app and the Luca ba
   - across IP-address changes
 - ... and associate plain data of visited locations (check-in / check-out) to those devices
 
-**...without any evolvement of responsible health departments or location owners**
+**...without any involvement of responsible health departments or location owners**
 
 ## Disclaimer
 
