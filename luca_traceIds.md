@@ -20,7 +20,7 @@ _The content of this document is based on my personal observation of the HTTP co
 
 ## Introduction
 
-By design of the **LucaApp** architecture deploys a various asymmetric and symmetric keysfor involved entities, in order to protect user data from disclosure.
+By design of the **LucaApp** architecture deploys various asymmetric and symmetric keys for different purposes across involved entities. The goal: protect user data from disclosure.
 
 The detailed security objectives are described here: [link to security concept](https://luca-app.de/securityconcept/properties/objectives.html#objectives)
 
