@@ -48,25 +48,25 @@ After receiving a Infected Guest’s guest data transfer object the Health Depar
 The Luca Server can (indirectly) use this circumstance in order to associate a guest data transfer object with the encrypted guest data of the same Guest by observing the Health Department Frontend’s requests
 ```
 
-Based on my own observations of the behavior of the LucaApp (Android, version 1.4.12), the Luca-backend is able to uniquely identify devices (even across connectivity loss and IP-Address changes) and able to associate location check-ins to those devices **without any involvement of health departments**. I going to describe aforementioned observations and my personal conclusion throughout this document.
+Based on my own observations of the behavior of the LucaApp (Android, version 1.4.12), the Luca-backend is able to uniquely identify devices (even across connectivity loss and IP-Address changes) and able to associate location check-ins to those devices **without any involvement of health departments**. I am going to describe aforementioned observations and my personal conclusion throughout this document.
 
 ## Side note on: device tracking versus user tracking
 
-For most real world cases, it is sufficient for 3rd party trackers to identify devices with a high probability of uniqueness. This is because it is almost always the case, that a single mobile device is used by a single user. There also exist additional tracking technologies with the goal of tracking dedicated users accross multiple device (cross-device tracking) which is not in scope of this summary.
+For most real world cases, it is sufficient for 3rd party trackers to identify devices with a high probability of uniqueness. This is because, it a single mobile device is used by a single user. There also exist additional tracking technologies with the goal of tracking dedicated users across multiple device (cross-device tracking) which are not in scope of this review.
 
-It is also known, that while luca takes efforts to protect the actual user data (name, address, phone number etc), the authenticity of said user data can not be assured by the luca-service. This is even true for the phone number, as it was shown multiple times, that the deployed 'SMS TAN verification' could be bypassed easily, because it is implemented on client side (user controlled).
+It is also known, that, while luca takes efforts to protect the actual user data (name, address, phone number etc), the authenticity of said user data can not be assured by the luca-service. This is even true for the phone number! It was shown multiple times, that the deployed 'SMS TAN verification' could be bypassed, because it is implemented on client side (user controlled).
 
-This leads to the conclusion, that the encrypted user data (which the luca backend holds ready for health departments) isn't necessarily of value. But of course, meta-information which arises at the luca backend and allows device- and behavior-tracking as described above **is of value for every tracking service**.
+This leads to the conclusion, that the encrypted user data (which the luca backend holds ready for health departments) isn't necessarily of value. But of course, meta-information which arises at the luca backend and allows device-tracking and behavior-tracking as described above **is of exceptional value for every tracking service**.
 
 # Review of relevant network interaction between luca Android app and luca-backend
 
 In this section I am going to review HTTP communication between the luca app and the backend, with focus on the `/traces/bulk` endpoint. Communication to other endpoints (e.g. user registration) is omitted, where it does not add up to the topic of this document.
 
-The HTTP body data excerpts used to illustrate observations, use real data which was transmitted. In order to review this communication, a luca test account was created (SMS verification was skipped, in order to allow health departments to easily recognize the invalid phone number, in case the generated tracing data gets relevant).
+The HTTP body data excerpts used to illustrate observations, reflect real data of HTTP communication of app and backend. In order to review this communication, a luca test account was created (SMS verification was skipped, in order to allow health departments to easily recognize the phone number in use as being invalid).
 
 Additional notes:
 
-- In order to observe check-in/check-out behavior, one of multiple publicly-shared location QR-codes has been used for self-check-in. As those QR are already publicly available, no efforts have been taken to obfuscate related location data which occurs in the HTTP responses by the luca-backend endpoints.
+- In order to observe check-in/check-out behavior, one of multiple publicly-shared location QR-codes has been used for self check-in. As those QR codes are already publicly available, no efforts have been taken to obfuscate related location data, which occurs in the HTTP responses by the luca-backend endpoints.
 - The production API `https://app.luca-app.de/api/v3/` was used for testing. A staging API is available at `https://staging.luca-app.de/api/v3/`, but using it would involve changes in the application code. As the provided Android source code is incomplete, it is not possible to compile an adjusted version of the app. Runtime-modification of the app by other means (to redirect API requests to the staging API) have not been applied for obvious reasons.
 
 ## 1. Classifiers in HTTP request headers
