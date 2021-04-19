@@ -22,11 +22,11 @@ _The content of this document is based on my personal observation of the HTTP co
 
 By design of the **LucaApp** architecture deploys various asymmetric and symmetric keys for different purposes across involved entities. The goal: protect user data from disclosure.
 
-The detailed security objectives are described here: [link to security concept](https://luca-app.de/securityconcept/properties/objectives.html#objectives)
+The detailed security objectives are described here: [link to security concept](https://luca-app.de/securityoverview/properties/objectives.html#objectives)
 
 One out of multiple symmetric keys (or "secrets") is the `tracing secret`, which is used to generate `tracingIDs` for anonymized user check-ins into dedicated locations (in luca's terminology users are called `guests` and locations, which offer check-ins, are called `venues`).
 
-The "security concept" describes a [tracingID](https://luca-app.de/securityconcept/properties/secrets.html#term-trace-ID) like this:
+The "security concept" describes a [tracingID](https://luca-app.de/securityoverview/properties/secrets.html#term-trace-ID) like this:
 
 ```
 An opaque identifier derived from a Guest’s user ID and tracing secret during Guest Check-In. It is used to identify Check-Ins by an Infected Guest after that Guest shared their tracing secret with the Health Department.
@@ -34,13 +34,13 @@ An opaque identifier derived from a Guest’s user ID and tracing secret during 
 
 The term `opaque` implies that **at no point in time, luca operators are able to draw conclusion on the guest, which produced a `trace ID`.**
 
-Moreover, the `trace IDs` are meant to allow legit health departments (**and only health departments**) to reconstruct a guest' check-in history. A detailed description could be found in the process [Tracing the Check-In History of an Infected Guest](https://luca-app.de/securityconcept/processes/tracing_access_to_history.html#process-tracing). Below a short excerpt:
+Moreover, the `trace IDs` are meant to allow legit health departments (**and only health departments**) to reconstruct a guest' check-in history. A detailed description could be found in the process [Tracing the Check-In History of an Infected Guest](https://luca-app.de/securityoverview/processes/tracing_access_to_history.html#process-tracing). Below a short excerpt:
 
 ```
 The first part of the contact tracing is for the Health Department to reconstruct the Check-In History of the Infected Guest. Each Check-In stored in luca is associated with an unique trace ID. These IDs are derived from the tracing secret stored in the Guest App (as well as from the Guest’s user ID and a timestamp). Hence, given the Infected Guest’s tracing secrets the Health Department can reconstruct the Infected Guest’s trace IDs and find all relevant Check-Ins.
 ```
 
-In the 'security considerations' of said process description, the security concept also mentions the possible [Correlation of Guest Data Transfer Objects and Encrypted Guest Data](https://luca-app.de/securityconcept/processes/tracing_access_to_history.html#security-considerations)
+In the 'security considerations' of said process description, the security concept also mentions the possible [Correlation of Guest Data Transfer Objects and Encrypted Guest Data](https://luca-app.de/securityoverview/processes/tracing_access_to_history.html#security-considerations)
 
 ```
 After receiving a Infected Guest’s guest data transfer object the Health Department Frontend uses the contained user ID to obtain that Guest’s encrypted guest data from the Luca Server. This is done in order to display the Infected Guest’s Contact Data to the Health Department.
@@ -109,7 +109,7 @@ For the rest of the review, I will only cover HTTP body data, but it is crucial 
 
 When the application is started the first time, a user account has to be created. Once that is done, the app creates the various crypto keys - including the 'tracing secret' - which is only known locally.
 
-After 'tracing secret' creation, the app ultimately starts to derive `trace IDs`. Those `trace IDs` are re-generated every 60 seconds, as described in the documentation. The documentation is less specific when it comes to backend-polling of `trace IDs`. The topic is touched in the process [Check-In via Mobile Phone App](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process-guest-checkin) of the documentation, which states:
+After 'tracing secret' creation, the app ultimately starts to derive `trace IDs`. Those `trace IDs` are re-generated every 60 seconds, as described in the documentation. The documentation is less specific when it comes to backend-polling of `trace IDs`. The topic is touched in the process [Check-In via Mobile Phone App](https://luca-app.de/securityoverview/processes/guest_app_checkin.html#process-guest-checkin) of the documentation, which states:
 
 ```
 This polling request might leak information about the association of a just checked-in trace ID and the identity of the Guest (directly contradicting O2). As mobile phone network typically use NAT, the fact that the Luca Server does not log any IP addresses and the connection being unauthenticated, we do accept this risk.
@@ -134,7 +134,7 @@ So let's have a look, how frequently the polling occurs, to get a better picture
 
 So when the app is running in foreground, the **endpoint is polled in a 3 second interval**.
 
-In contrast to the (not very specific) process description in [Check-In via Mobile Phone App](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process-guest-checkin), **the polling happens all the time, not only after a check-in**. Therefor the app is polling from the very beginning, even if it wasn't used to create a single check-in.
+In contrast to the (not very specific) process description in [Check-In via Mobile Phone App](https://luca-app.de/securityoverview/processes/guest_app_checkin.html#process-guest-checkin), **the polling happens all the time, not only after a check-in**. Therefor the app is polling from the very beginning, even if it wasn't used to create a single check-in.
 
 What about the content of the polling requests?
 
@@ -213,7 +213,7 @@ To further analyse the polling behavior, it was necessary to do a `self check-in
 
 In case of a "scanner check-in" this data would be sent to the luca-backend by the "scanner frontend", in case of "self check-in" this request gets sent by the user device. Distinguishing the two cases does not matter for my considerations, as the data always involves the specific `trace ID` used for the check-in (which is already tied to the user device which generated it). Remember: The backend already learned about how `trace IDs` are associated to a user device, even if the IP-Address changes or the device is rebooted.
 
-The next step is the one, which is described for the [guest check-in process](https://luca-app.de/securityconcept/processes/guest_app_checkin.html#process) (polling should only happen after check-in):
+The next step is the one, which is described for the [guest check-in process](https://luca-app.de/securityoverview/processes/guest_app_checkin.html#process) (polling should only happen after check-in):
 
 ```
 Therefore, the Guest App polls the Luca Server via an unauthenticated connection. This inquires whether a Check-In was uploaded by a Scanner Frontend with a trace ID that the Guest App recently generated. Once this inquiry polling request is acknowledged by the Luca Server, the Guest App assumes that a successful QR code scan and Check-In was performed. Some UI feedback is provided to the Guest.
