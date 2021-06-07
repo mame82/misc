@@ -1,36 +1,36 @@
 # Meldung einer vermeintlichen Sicherheitslücke an Luca Team
 
-Die Zusammenfassung die ich hier wiedergebe, ist für mich etwas ungewöhnlich, denn icch schreibe nicht Englisch (ich entschuldige mich schonmal für alle Typos, da ich keine Helferlein mit German Language-Pack installiert habe) und ich schreibe nicht nur über Technik.
+Die Zusammenfassung, die ich hier wiedergebe, ist für mich etwas ungewöhnlich, denn ich schreibe nicht auf Englisch (ich entschuldige mich schonmal für alle Typos, da ich keine Helferlein mit German Language-Pack installiert habe) und ich schreibe nicht nur über Technik.
 
-Warum? Weil es um die LucaApp geht, über die viel im öffentlichen Raum diskutiert wird (schließt mich ein). Mein Fokus liegt idR ausschließlich auf Technik und Code, denn da gibt es nicht so viel Interpretationsspielraum oder Auslegungsvarianten. Das gestaltet sich im Kontext der "Luca app" dszt. offensichtlich etwas anders, daher gebe ich auch Rahmeninformationen wieder.
+Warum? Weil es um die LucaApp geht, über die viel im öffentlichen Raum diskutiert wird (das schließt mich mit ein). Mein Fokus liegt i.d.R. ausschließlich auf Technik und Code, denn dort gibt es nicht viel Interpretationsspielraum oder viele Auslegungsvarianten. Das gestaltet sich im Kontext der "Luca app" derzeit offensichtlich etwas anders, daher gebe ich auch Rahmeninformationen wieder.
 
 # Um was geht es eigentlich
 
-Das Luca backend implementiert verschiedenste Sicherheitsmechanismen. Für mich war hier u.a. das "rate limiting" ein interessanter Aspekt.
+Das Luca Backend implementiert verschiedenste Sicherheitsmechanismen. Dieser Text behandelt aus der Fülle dieser Mechanismen genau einen: das "Rate Limiting".
 
-Die Grundsätzliche Idee hinter "rate limiting" is die Anzahl von Requests einzelner Nutzer (oder Quell-IPs) auf eine festgelegte maximale Anzahl in einem vorgegebenem Zeitintervall zu beschränken. Genauso unterschiedlich wie die Gründe für einen solchen Mechanismus, sind die Parameter die beim Einsatz von "rate limiting" zum tragen kommen (max Anzahl erlaubter Requests, Kriterien für Requestzählung, Sperrzeit bei erreichen des Limits usw.).
+Die grundsätzliche Idee hinter "Rate Limiting" ist die Anzahl von Requests einzelner Nutzer (oder Quell-IPs) auf eine festgelegte maximale Anzahl in einem vorgegebenen Zeit-Intervall zu beschränken. Genauso unterschiedlich wie die Gründe für einen solchen Mechanismus sind, sind die Parameter die beim Einsatz von "Rate Limiting" zum Tragen kommen (maximale Anzahl erlaubter Requests, Kriterien für Requestzählung, Sperrzeit beim Erreichen des Limits usw.).
 
-Ein offensichtliches Beispiel für einen sinnvollen Einsatz von Ratelimiting, wäre bspw ein Endpunkt der Nutzer authentifiziert. Das "rate limit" würde hierbei üblicherweise nicht die direkt die Anzahl falsch eingegebener Kennwörter zählen, um den Nutzer nach zu vielen Fehlversuchen zu sperren - das gehört er in die Applikations-Logik. Über "rate limiting" könnte man aber verhindern, dass ein Nutzer 100 Kennwörter in wenigen Sekunden testet, denn dabei würde es sich aller Wahrscheinlichkeit nach um einen Bruteforce-Versuch handeln. Klare Messkriterien wären hierbei also schonmal die Anzahl der Requests pro Zeitinterval. Die Requests müssten aber auch einem Nutzer zugeordnet werden. Das könnte z.B. über die Quell-IP erreicht werden (eher schlecht, aufgrund DoS-Potential bei source IP spoofing _wink_). Zu den Parametern/Kriterien für "rate limits" gehört aber auch deren scope (Anwendung nur auf den Authetifizierungs-Endpunkt, auf alle Endpunkte gleichermaßen, oder aber, individuell je Endpunkt).
+Ein offensichtliches Beispiel für einen sinnvollen Einsatz von Rate Limiting, wäre bspw. ein Endpunkt der Nutzer authentifiziert. Das "Rate Limit" würde hierbei üblicherweise NICHT direkt die Anzahl falsch eingegebener Kennwörter zählen, um den Nutzer nach zu vielen Fehlversuchen zu sperren, denn das gehört er in die Applikations-Logik. Über "Rate Limiting" könnte man aber verhindern, dass ein Nutzer 100 Kennwörter in wenigen Sekunden testet, denn dabei würde es sich aller Wahrscheinlichkeit nach um einen Bruteforce-Versuch handeln. Klares Messkriterium (und damit Parameter), wäre hier also schonmal die Anzahl der Requests pro Zeit-Intervall. Die Requests müssten aber auch einem Nutzer zugeordnet werden. Das könnte z.B. über die Quell-IP erreicht werden (eher schlecht, aufgrund DoS-Potential bei source IP spoofing _wink_). Zu den Parametern/Kriterien für "Rate Limits" gehört aber auch deren "Scope" (Anwendung nur auf den Authentifizierungs-Endpunkt / Anwendung auf alle Endpunkte gleichermaßen, oder aber, Anwendung individuell je Endpunkt).
 
-Ich denke das reicht zur Kurzerläuterung von "rate limiting".
+Ich denke, das reicht zur Kurzerläuterung von "Rate Limiting".
 
-Für Luca kommt Rate Limiting an verschiedenen Endpunkten (EP) zum Einsatz, auch hier werden u.a. Bruteforce Angriffe damit verhindert. Problematisch wäre es aber auch, wenn man an die EPs für SMS-TAN Verifizierung beliebig viele Anfragen senden könnte, denn so wäre man in der Lage den Massenversand von SMS auszulösen. Eine Umgehung des "rate limiting" wäre also an verschiedenen Stellen kritisch.
+Für Luca kommt Rate Limiting an verschiedenen Endpunkten (EP) zum Einsatz, auch hier werden u.a. Bruteforce Angriffe damit verhindert. Problematisch wäre es aber auch, wenn man an die EPs für SMS-TAN Verifizierung beliebig viele Anfragen senden könnte, denn so wäre man in der Lage den Massenversand von SMS auszulösen. Eine Umgehung des "Rate Limiting" wäre also an verschiedenen Stellen kritisch.
 
-Ich habe mir also die (neben vielen anderen) Frage gestellt, ob man für das Luca Backend das Ratelimiting umgehen kann.
+Ich habe mir also  (neben vielen anderen) die Frage gestellt, ob man für das Luca Backend das Rate Limiting umgehen kann.
 
-Fragen wie diese kann man sich auf verschiedenste Arten beantworten: Quellcode lesen und nach Implementierungsfehlern als Ansatz suchen (der Code für das Backend wurde gerade veröffentlicht), blind testen ohne überhaupt eine Idee zu haben (nein, das ist kein Fuzzing - bestenfalls Blackbox-Testing) oder: Man hat eine konkrete Idee, probiert die aus, passt sie an ein mögliches Szenario an - falls sie funktioniert, erstellt ein Proof-of-Concept (PoC) und leitet potentielle Folgen ab, um den Impact abschätzen zu können (denn man sollte nicht wirklich alles testen, wie z.B. Massen-SMS-Versand).
+Fragen wie diese kann man sich auf verschiedenste Arten beantworten: Quellcode lesen und nach Implementierungsfehlern als Ansatz suchen (der Code für das Backend wurde gerade veröffentlicht), blind testen, ohne überhaupt eine Idee zu haben (nein, das ist kein Fuzzing - bestenfalls Blackbox-Testing) oder: Man hat eine konkrete Idee, probiert diese aus, passt sie an ein mögliches Szenario an - sofern sie funktioniert, erstellt dann ein Proof-of-Concept (PoC) und leitet potentielle Folgen ab, um den Impact abschätzen zu können (denn man sollte nicht wirklich alles testen, wie z.B. Massen-SMS-Versand).
 
 Gewählt habe ich die letzte Variante, denn ich hatte bereits eine simple Idee und erste Tests waren vielversprechend. Derartige Ideen führen oft nicht ad-hoc zum Ziel, aber kein Grund schnell aufzugeben. Ist man in die erste Sackgasse gelaufen, nimmt man einen anderen Weg. Das tut man so lange, bis man das Ziel erreicht hat oder man jeden möglichen Weg beschritten hat, **erst dann verwirft man die Idee**.
 
-In diesem Fall, gab es nicht wirklich viele Sackgassen und alles ging mir recht gut von der Hand. Es sollte sich allerdings herausstellen, dass ich "an Stellen abgebogen bin, wo gar keine Wege mehr waren". Im Resultat habe ich zwar einen Ausgang aus dem Ideen-Labyrinth entedeckt, nur leider nicht bemerkt, dass über diesm Ausgang nicht wirklich das Wort "Ziel" stand.
+In diesem Fall gab es nicht wirklich viele Sackgassen und alles ging mir recht gut von der Hand. Es sollte sich allerdings herausstellen, dass ich "an Stellen abgebogen bin, wo gar keine Wege mehr waren". Im Resultat habe ich zwar einen Ausgang aus dem Ideen-Labyrinth entdeckt, nur leider nicht bemerkt, dass über diesem Ausgang nicht wirklich das Wort "Ziel" stand.
 
-Neben dem öffentlichen Interesse an Luca, ist das einer der wichtigsten Gründe, warum ihr diesen Text lest. **Scheitern ist ganz normal. Es gehört dazu, denn aus Fehlern lernt man und nur wenn man aus Fehlern lernt wächst man!** Gerade die Security-Community ist oft so scheinheilig, dass man in ihr oft schnell verzweifeln kann. Es gibt Massenhaft Blender, Imposter, auch viel Ideenklau und Lügen. Gerade für Newcomer ist das oft schwer zu erkennen. Überall liest man von Erfolgen, Exploits mit klangvollen Namen - als stammen sie aus der Werbeindustrie -, critical vulns werden scheinbar am Fließband entdeckt. Was man kaum in den Vordergrund rückt: Die zahlreichen Fails und die riesen Menge arbeit, die oft in die Ausarbeitung eines functionalen Exploits geht (meist müssen ganze Ketten an Schwachstellen entdeckt und verknüpft werden, um ein einfaches Ziel zu erreichen).
+Neben dem öffentlichen Interesse an Luca, ist das einer der wichtigsten Gründe, warum ihr diesen Text lest. **Scheitern ist ganz normal. Es gehört dazu, denn aus Fehlern lernt man und nur wenn man aus Fehlern lernt, wächst man!** Gerade die Security-Community ist oft so scheinheilig, dass man in ihr oft schnell verzweifeln kann. Es gibt Massenhaft Blender, Imposter, auch viel Ideenklau und Lügen. Gerade für Newcomer ist das oft schwer zu erkennen. Überall liest man von Erfolgen, Exploits mit klangvollen Namen - als stammen sie aus der Werbeindustrie -, "critical vulnerabilities" werden scheinbar am Fließband entdeckt. Was man kaum in den Vordergrund rückt: Die zahlreichen Fails und die riesige Menge an Arbeit, die oft in die Ausarbeitung eines funktionalen Exploits geht (meist müssen ganze Ketten an Schwachstellen entdeckt und verknüpft werden, um ein einfaches Ziel zu erreichen).
 
-Für mich sind fails ganz normal, ich gehe damit locker um und habe über die Jahre auch gelernt zu akzeptieren, dass man (gerade bei der Suche nach Schwachstellen) wesentlich mehr Lebenszeit auf das Scheitern verschwendet, als man Erfolge feriert. Nochmal: **Das ist ganz normal und dessen sollte man sich bewusst sein**.
+Für mich sind "fails" ganz normal, ich gehe damit locker um und habe über die Jahre auch gelernt zu akzeptieren, dass man (gerade bei der Suche nach Schwachstellen) wesentlich mehr Lebenszeit auf das Scheitern verschwendet, als darauf Erfolge zu feiern. Nochmal: **Das ist ganz normal und dessen sollte man sich von vornherein bewusst sein**.
 
-Totzdem mache auch ich den Fehler, andere hauotsächlich an Erfolgen teilnehmen zu lassen und Misserfolge schnell zu übergehen. Also trage auch ich zur schlechten Fehlerkultur in der Sec-Community bei und möchte das hiermit wenigstens einmal anders machen.
+Trotzdem mache auch ich den Fehler, andere hauptsächlich an Erfolgen teilnehmen zu lassen und Misserfolge schnell zu übergehen. Damit trage auch ich zur schlechten Fehlerkultur in der Sec-Community bei und möchte das wenigstens an dieser Stelle einmal anders machen.
 
-Leider kann ich kein wirklich großes Klagelied singen, denn diesmal habe ich nur wenige Stunden Lebenszeit mit einem Fehler verbracht (remeber: die ist trotzdem nicht verschwendet), dennoch ist so etwas exemplarisch.
+Leider kann ich kein wirklich großes Klagelied singen, denn diesmal habe ich nur wenige Stunden Lebenszeit mit einem Fehler verbracht (remember: diese Zeit ist trotzdem nicht verschwendet), dennoch ist so etwas exemplarisch.
 
 Bevor ich zum technischen Teil komme, möchte ich noch den zweiten Aspekt abhandeln, an dem die meisten interessiert sein dürften:
 
@@ -38,19 +38,19 @@ Bevor ich zum technischen Teil komme, möchte ich noch den zweiten Aspekt abhand
 
 Zunächst einmal bin ich gar nicht den üblichen (und richtigen) Weg gegangen, mich direkt an den betroffenen Hersteller zu wenden, sondern habe public über Twitter nach den "Frontleuten" des Luca-Teams gerufen.
 
-Eine antwort hatte ich innerhalb weniger Minuten (als DM). Natürlich habe ich den Weg über twitter bewusst gewählt. Über Luca wird nicht nur viel geredet (auch viel Bullshit), sondern man sagt dem Team auch nach dass sie ausweichend reagieren und Probleme nicht adressieren. Ich kann das in Teilen für mich bestätigen, aber die Handhabung von Schwachstellen ist ja nochmal ein ganz anderes Feld, als public-relationship oder customer-relationship. Will sagen, anhand dessen wie ein Vendor mit Meldenden von Schwachstellen und den Schwachstellen selbst umgeht, trennt sich schnell die Spreu vom Weizen.
+Eine Antwort hatte ich innerhalb weniger Minuten (als DM). Natürlich habe ich den Weg über Twitter bewusst gewählt. Über Luca wird nicht nur viel geredet (auch viel Bullshit), sondern man sagt dem Team auch nach, dass sie ausweichend reagieren und Probleme nicht adressieren. Ich kann das in Teilen für mich bestätigen, aber die Handhabung von Schwachstellen ist ja nochmal ein ganz anderes Feld, als public-relationship oder customer-relationship. Will sagen, anhand dessen wie ein Vendor mit Meldenden von Schwachstellen und den Schwachstellen selbst umgeht, trennt sich schnell die Spreu vom Weizen.
 
-Weiter im Text ... ich habe also eine DM mit Antwort erhalten und darum gebeten, auch öffentlich zu antworten. Auch dies ist alles andere als üblich, wurde aber seitens Luca prompt gemacht.
+Weiter im Text ... Ich habe also eine DM mit Antwort erhalten und daraufhin gebeten, auf meine öffentliche Frage auch eine öffentliche Antworten zu erhalten. Auch dies ist alles andere als üblich, aber seitens Luca kam man der Bitte prompt nach.
 
-Der Rest ging mehr oder weniger im Standard-Prozess weiter: Melden der potentiellen Schwachstelle auf vorgesehenem Kanal (vershlüsselte Mail) und dann auf Vendor warten. Da der PoC so schlicht war, habe ich keinen Report geschrieben, sondern zu Problem-Ursache und Mitigation nur einige Kommentare in den PoC selbst eingefügt.
+Der Rest ging mehr oder weniger im Standard-Prozess weiter: Melden der potentiellen Schwachstelle auf vorgesehenem Kanal (verschlüsselte Mail) und dann auf Vendor warten. Da der PoC so schlicht war, habe ich keinen Report geschrieben, sondern zu Problem-Ursache und Mitigation nur einige Kommentare in den PoC selbst eingefügt.
 
 Mit einer Antwort hätte ich nicht mehr am selben Tag gerechnet, aber die kam schon weniger als 3 Stunden später (in dieser Zeit haben wesentlich besser aufgestellte Firmen noch nicht mal ein Ticket aufgemacht). Der Inhalt der Mail war nicht nur eine einfache technische Rückfrage, sondern:
 
 - das Problem wurde technisch verstanden (nicht sehr komplex)
 - konnte nicht reproduziert werden (Ui, das wurde schnell getestet)
-- es wurden auch andere Varianten eine "rate limit bypasses" auf Basis des PoC getestet (die ich gar nicht vorgesehen hatte), aber ebenfalls ohne Erfolg
+- es wurden auch andere Varianten eine "Rate Limit Bypasses" auf Basis des PoC getestet (die ich gar nicht vorgesehen hatte), aber ebenfalls ohne Erfolg
 
-Darüberhinaus wurde angeboten auf Deutsch weiter zu kommunizieren (macht ja Sinn).
+Darüber hinaus wurde angeboten, auf Deutsch weiter zu kommunizieren (macht ja Sinn).
 
 ... und nun?! Scheiße, keine 3 Stunden rum und ich hab das Ding wieder auf dem Tisch. Eigentlich Family time, aber auch nach so vielen Jahren tue ich mich noch schwer, von einem Problem abzulassen, wenn ich nicht weiß wo die Ursache liegt.
 
@@ -68,13 +68,13 @@ Dann noch Klarstellung bei Twitter (Wichtig Leute: "Wer A sagt muss auch B sagen
 
 Das sollte es jetzt zur Kommunikation gewesen sein. IMO hat man da bei Luca nichts anbrennen lassen. Aber "Oha!" am nächsten Tag wieder eine Mail von Luca im Eingang! Why? Bekomme ich Feedback, dass das Ticket geschlossen ist? Nein! Wer auch immer meine Einreichung reviewt hat, hat sich nach meiner letzten Mail auch noch die Mühe gemacht, nachzuvollziehen warum mein **nicht funktionaler** PoC am Real-System andere Ergebnisse produziert als in meinen Tests und mir dazu zusätzliche Informationen zukommen lassen. Nicht schlecht! Für mich ist das ein klares Anzeichen dafür, dass man seitens Luca daran interessiert ist, dass ResearcherInnen auch die nötigen Informationen an die Hand bekommen, um saubere Tests durchzuführen.
 
-An dieser Stelle kann ich nur sagen: Wenn im Umgang mit diesem Report etwas falsch gehandhabt wurde, dann nicht auf der Seite von Luca. AmS wurde der Vorgang schnell, präzisse und umfassend abgearbeitet!
+An dieser Stelle kann ich nur sagen: Wenn im Umgang mit diesem Report etwas falsch gehandhabt wurde, dann nicht auf der Seite von Luca. AmS wurde der Vorgang schnell, präzise und umfassend abgearbeitet!
 
 Weiter mit der Idee und PoC Entwicklung...
 
 # Tinkering with Luca-backend rate limiting
 
-Wie Eingangs erläutert, habe ich nicht den bereits verfügbaren code zur "Rate Limiting" Implementierung gelesen und nach schwächen gesucht, sondern bin von einigen Annahmen ausgegeangen und habe eine Idee verfolgt.
+Wie Eingangs erläutert, habe ich nicht den bereits verfügbaren Code zur "Rate Limiting" Implementierung gelesen und nach schwächen gesucht, sondern bin von einigen Annahmen ausgegangen und habe eine Idee verfolgt.
 
 Annahmen für etabliertes Rate Limiting:
 
@@ -160,7 +160,7 @@ Was hätte man hier besser machen können? Vieles, und genau da liegt der Lernef
 
 - man muss nicht das gesamte interne Verhalten von Curl kennen, aber wenn man Curl für so etwas benutzt: `-v` is your friend
 - man sollte möglichst viele Inputs für jeden Endpunkt Testen, um alle unterscheidbaren Responses zu kennen. Hätte ich hier mit dem 400 für falsch formatierte UUIDs gearbeitet, wäre der Fehler schnell aufgefallen
-- man sollte seine eigenen Ergebnisse umfassend validieren und die Ursachen genau analysierenen. Zum Einen gehört diese Analyse zu einen guten Report, zum Anderen hilft sie Fehler zu vermeiden. Ich hätte hier z.B. den relevanten Source Code nachträglich analysieren müssen, um die Fehlerursache zu finden (wer sich die Rate Limiting Middleware mal anschaut, sieht schnell dass diese Idee nie funktionieren konnte. **Hinweis: X-FORWARDED-FOR wird auch nicht funtionieren, wäre aber aufgrund des Codes ein realistischere Ansatz ;-)**). Weiter hätte ich meinen PoC für mehr als 2000 Requests testen müssen, um das Rate Limit mehr als einmal zu triggern. Auch dabei wäre ein Fehler aufgefallen, denn der später ungültige Request-Path triggert gar kein rate limit mehr.
+- man sollte seine eigenen Ergebnisse umfassend validieren und die Ursachen genau analysieren. Zum Einen gehört diese Analyse zu einen guten Report, zum Anderen hilft sie Fehler zu vermeiden. Ich hätte hier z.B. den relevanten Source Code nachträglich analysieren müssen, um die Fehlerursache zu finden (wer sich die Rate Limiting Middleware mal anschaut, sieht schnell dass diese Idee nie funktionieren konnte. **Hinweis: X-FORWARDED-FOR wird auch nicht funtionieren, wäre aber aufgrund des Codes ein realistischere Ansatz ;-)**). Weiter hätte ich meinen PoC für mehr als 2000 Requests testen müssen, um das Rate Limit mehr als einmal zu triggern. Auch dabei wäre ein Fehler aufgefallen, denn der später ungültige Request-Path triggert gar kein rate limit mehr.
 
 Nice. Dann hätten wird das, ich habe bei weitem mehr gesagt, als das Thema technisch hergibt.
 
