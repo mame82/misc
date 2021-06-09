@@ -555,11 +555,11 @@ Als wäre der Weg der Daten bis zu den ausgabe-Kontexten nicht schon verworren g
 
 ## 3.5 Zwischenfazit (Gefahr für SORMAS)
 
-Bisher wurde ausschließlich die `v1.1.11` des Luca "Health Department Frontends" betrachtet. Diese Betrachtung dieser Version wurde auf einen sehr konkreten Fokus reduziert, die Frage:
+Bisher wurde ausschließlich die `v1.1.11` des Luca "Health Department Frontends" betrachtet. Die Betrachtung dieser Version wurde auf einen sehr konkreten Fokus reduziert, nämlich die Frage:
 
-Sind Gesundheitsämter durch den Angriffsvektor "CSV Injection" gefährdet?
+**Sind Gesundheitsämter durch den Angriffsvektor "CSV Injection" gefährdet?**
 
-Auslöser der Betrachtung, war ein eilig nachgereichter Patch, der in diese Luca-Version - **im engen zeitlichen Zusammenhang zu einer Presse anfrage zum Thema "CSV Injection"** - eingeflossen ist. Im gleichen Zuge wurde durch die Luca-Entwickler kommuniziert, dass das System entlang der OWASP Emfehlungen gegen diesen Angriffs-Vektor abgesichert sei.
+Auslöser der Betrachtung, war ein eilig nachgereichter Patch, der in diese Luca-Version - **im engen zeitlichen Zusammenhang zu einer Presse anfrage zum Thema "CSV Injections"** - eingefloss. Im gleichen Zuge wurde durch die Luca-Entwickler kommuniziert, dass das System entlang der OWASP Emfehlungen gegen diesen Angriffs-Vektor abgesichert sei.
 
 Weiter wurde die Betrachtung von Nutzer-kontrollierten Eingabedaten, welche im Luca-System verarbeitet werden, auf "Kontaktdaten" reduziert.
 
