@@ -420,6 +420,102 @@ Nach dieser (sehr ausführlichen) Einleitung, soll nun zunächst betrachtet werd
 
 ## 3.4 Verarbeitungskette von Nutzer-Input zu resultierenden Output-Kontexten im "Health Department Frontend" (Rückblick auf v1.1.11)
 
+Betrachtet werden hier (stellvertretend) nur die Kontaktdaten der Luca-Nutzer als Input, es sei aber nochmals darauf hingewiesen, dass es verschiedene weitere Eingabedaten gibt, die der Kontrolle von externen Teilnehmern unterliegen.
+
+Die Kontaktdaten sind ab dem Moment, in dem sie im Luca-Applikationsanteil der Gesundheitsämter verarbeitet werden (im "Health Department Frontend"), als **unvalidierter Input** zu sehen. Eine vorherige, Client-seitige Validierung der Kontaktdaten hat keinen relevanten Effekt, da diese immer durch den Nutzer umgangen werden kann. Vielmehr, laufen die besagten Kontaktdaten verschlüsselt im Gesundheitsamt aus, so dass auch eine vorab-Validierung durch das Luca-Backend ausgeschlossen ist. Die Validierung der Daten und die Kontext-agnostische Kodierung kann deshalb erst im Gesundheitsamt erfolgen.
+
+Funtionale Prozesse, die den Abruf, die Entschlüsselung und weitere Verarbeitung der Daten auslösen werden nicht mitbetrachtet.
+
+### Schritt 1: Entschlüsselung der Kontaktdaten
+
+Zunächst werden die bereits auf dem Server hinterlegten `encrypted contact data` des Nutzers abgerufen: [Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L70).
+
+Die verschlüsselten Daten liegen zunäschst als Base64 codierter String mit einer maximalen Länge von 1024 Byte vor ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/backend/src/database/models/users.js#L15)) und werden zunächst dekodiert ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L80)). Ein ungültiger Base64 String würde hier eine Exception auslösen, ob diese zu einem "crash" des "Health Department Frontend" oder zum "Übergehen" des Datensatzes führt wurde nicht geprüft. Nach der Base64-Dekodierung ergeben sich bis zu 768 Bytes an Binär-Daten, die durch externe Nutzer **beliebig gestaltet werden können** (werden als Hex-kodierter String repräsentiert).
+
+Nach der Entschlüsselung der Kontaktdaten (AES128 CTR), wird der Kalrtext als UTF-8 String dekodiert ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L77)). Ergäbe sich hier kein gültiges UTF-8, würde dies erneut eine Exception auslösen.
+
+Es kann also festgehalten werden, dass an diesem Punkt ein UTF-8 String, mit einer Länge bis zu 768 Bytes vorliegt, welcher durch Systemnutzer beliebig gestaltet werden kann.
+
+### Schritt 2a: Überführen der Kontakten in ein JavaScript Objekt (Kontext Wechsel)
+
+Der UTF-8 String aus Schritt 1 durchläuft nun den ersten Kontext-Wechsel und wird mittels `JSON.parse()` in ein JavaScript Objekt überführt ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L87)). Die Input Validation entfällt hier auf den JSON Parser, ein ungültiger JSON String würde ebenfalls eine Exception auslösen.
+
+An dieser Stelle ist festzuhalten, dass das **erwartete** Objekt folgendes Schema haben sollte (Pseudocode):
+
+```
+{
+  "v":  Typ Integer/Number          // 3 für App-Nutzer, 2 für Badges
+  "fn": Typ String, Länge beliebig  // Vorname
+  "ln": Typ String, Länge beliebig  // Nachname
+  "pn": Typ String, Länge beliebig  // Telefonnummer
+  "e":  Typ String, Länge beliebig  // Email
+  "st": Typ String, Länge beliebig  // Strasse
+  "hn": Typ String, Länge beliebig  // Hausnummer
+  "pc": Typ String, Länge beliebig  // Postleitzahl
+  "c":  Typ String, Länge beliebig  // Stadt
+  "vs": Typ String, Länge beliebig  // nur für Badges, userVerificationSecret (Base64 kodiert)
+}
+```
+
+Als Input Validation erfolgt durch die Funktion `assertStringOrNumericValues` eine Typen-Überprpfung des Kontaktdaten-Objektes ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L88)). Die Funktion löst eine Exception aus, wenn eine der `properties` des Objektes einen Wert enthält der nicht dem Typ `number` oder `string` entspricht ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/typeAssertions.js#L3)).
+
+**Diese rudimentäre Eingabe Validierung ist unzureichend**:
+
+- Es findet keine vollständige Validierung der Struktur statt. Ein Vorname darf hier beispeilsweise durchaus vom Typ `number` sein oder die Objekt-Property `"v"` wird mit einem Wert des Typs `string` belegt. Dies kann nicht vorhersehbare Folgen auf den Programfluss der Applikation im Gesundheitsamt haben, wie z.B. einen "Crash" beim Verarbeiten eines manipulierten Datensatzes.
+- Da hier (noch) nicht geprüft wird, ob ausschließlich Objekt-Properties vorhanden sind, welche genäß der erwarteten Struktur vorgesehen sind, kann der Weg für Angriffe im JavaScript-Kontext geebnet werden. Als Beispiel sei hier die Vobereitung einer "Prototype Pollution" genannt (Objekt-Schlüssel wie `__proto__` oder `constructor` werden nicht unterbunden). Eine diesbezügliche Eingabe Validierung erfolgt erst später.
+- Es findet keinerlei semantische Validierung statt. Eine Postleitzahl kann beispielsweise eine Zeichenkette beliebiger Länge, ohne weitere Beschränkung der zulässigen Zeichen, darstellen, welche (je nach Output Kontext) vollkommen anders interpretiert werden kann.
+
+**Das diese Unter-Sektion "Schritt 2a" und nicht "Schritt 2" heißt, ist der überwiegend schlechten Code Qualität des Systems geschuldet. Zur Erläuterung ist nun doch ein Exkurs in die Prozess-Gestaltung des Luca-Systemes nötig. Der hier beschriebene Ablauf trifft nur für Kontaktdaten zu, die durch das Gesundheitsamt direkt bei NutzerInnen abgerufen werden, im Rahmen der Abfrage ihrer Location Historie (Infektionsfall, vergleiche hierzu [Luca Security Overview "Tracing the Check-In History of an Infected Guest"](https://luca-app.de/securityoverview/processes/tracing_access_to_history.html)). Dass ein Nutzer der direkt vom Gesundheitsamt kontaktiert wird, versucht einen Angriff mit manipulierten Kontaktdaten durchzuführen, ist ohnehin eher unwahrscheinlich.**
+
+**Es gibt allerdings weitere Prozesse, in denen manipulierbare Kontaktdaten als Input verarbeitet werden, nämlich dann wenn das Gesundheitsamt die Kontakte einer Infizierten Person bei den Locations abfragt, welche von dieser Person besucht wurden (Gästelisten). Der funtionale Prozess wird hier beschrieben: [Luca Security Overview "Finding Potential Contact Persons"](https://luca-app.de/securityoverview/processes/tracing_find_contacts.html). Wesentlich hierbei: Ein Angriff auf diesen Prozess ist viel wahrscheinlich, da Angreifer belibig viele Nutzer mit Schadhaften Kontaktdaten anlegen und in belieibig viele Locations einchecken können (vergleiche Abschnitt 2.3 und 2.7). Die Datenverarbeitung im Gesundheitsamt erfolgt, sobald eine Location die "Gästelisten" bereitstellt (die Kontaktdaten sind dabei durch LocationbetreiberInnen nicht einsehbar/validierbar).**
+
+**Was heißt "schlechte Code Qualität"? Ganz einfach: Der Code zur Entschlüsselung der Kontakdaten ist redundant vorhanden, nimmt aber an anderen Stellen keine Filterung mehr vor.Dies ist nur ein Beispiel für eine durchgängig unsaubere, überkomplizierte, Wartungs-intensive und Fehler-anfällige Code-Struktur. Für durchschnittliche Entwickler, dürfte die Fehleranalyse und -beseitigung am statischen Code extrem aufwendig sein. Man müsste hier schon mindestens mit dynamischer Analyse ansetzen und dabei Riskieren Angriffs-relevante Code-Pfade nicht zu erkennen. Automatisierte und manuelle Tests werden zwar beworben, aber unter dem Stichwort "Code Coverage" im Hinterkopf, wird man diesbezüglich kaum fündig werden. "Threat Actors" dürfen sich hier freuen, denn diese werden Angriffs-Vektoren eher über "Fuzzing", automatisierte "Control-flow Analysis" oder "Instrumentation" ausfindig machen, und dabei sicher schneller fündig als der Code angepasst werden kann.**
+
+**Aus "Schritt 2a" wird also im nächsten Abschnitt der eigentliche "Schritt 2".**
+
+#### Randbemerkung zur JSON Input Validierung:
+
+_An anderen Stellen des Luca-Systems wird ähnlich verfahren (keine vollständige Eingabe Validierung), allerdings kommen andere JSON-Parser zum Einsatz. So nutzt die Android App zum Beispiel `Gson` als Parser, welcher für Gleitkomma-Typen auch Werte wie `NaN` (Not-a-Number)oder `INF` (Infinity) zulässt. Insbesondere eine ungefilterte Nutzung eines des Wertes `NaN` im Java-Kontext der Android App, würde dazu führen, dass die Ergebnisse aller in der Verarbeitung vorkommenden Operationen ebenfalls `NaN` werden (Stichwort "NaN Poisoning")._
+
+### Schritt 2: Überführen aller Kontakten einer "Gästeliste" in JavaScript Objekte (Kontext Wechsel)
+
+Wie erläutert, existiert die bereits beschriebene Funktionalität zum entschlüsseln von Kontaktdaten auch an anderen Stellen im Code:
+
+- für Kontaktdaten von Location-Gästen mit App: [Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/decryption.js#L124)
+- für Kontaktdaten von Location-Gästen mit Schlüsselanhängern: [Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/decryption.js#L58)
+
+**In keinem der beiden Code-Pfade findet die in "Schritt 2a" beschriebene (rudimentäre) Validierung der JavaScript Objekte die sich aus beliebig wählbaren Kontakdaten ergeben noch statt. Für Schlüsselanhänger macht man sich nicht einmal mehr die mühe, vor dem JSON-Parsing der entschlüsselten Daten zu prüfen, ob es sich beim Input um einen UTF-8 String handelt (ob der vermeintliche JSON-String allerdings UTF-8 kodiert ist - oder nicht - spielt ohnehin keine Rolle, denn es gibt keinen weiteren Input-Filter, den man durch Verwendung einer anderen Kodierung umgehen müsste).**
+
+Die beiden vorgenannten Code-Pfade werden in der Funktion `decryptTrace` zusammengefasst, welche neben anderen Daten (nicht im Scope dieses Dokumentes), auch das JavaScript Objekt - welches aus den entschlüsselten Kontaktdaten entsteht - als `userData` zurück gibt ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L92)).
+
+An dieser Stelle kann man festhalten, dass das resultierende `userData` Objekt beliebige Properties, Werten beliebiger Typen abbilden kann, die durch Luca-Nutzer frei wählbar sind.
+
+Die beinhaltet auch "nested objects", die z.B. genutzt werden können, um bei einem weiteren Kontext-Wechsel zu Frameworks wie `React` eine "Client-side Template Injection" zu provozieren, wenn die Daten als unvalidierter Input für eine unsichere `React Component` dienen (diesbezüglich wurden keine Betrachtungen unternommen). Als Nachlese sei hier auf folgenden Artikel verwiesen: [Link](https://medium.com/dailyjs/exploiting-script-injection-flaws-in-reactjs-883fb1fe36c1). Eine Objekt wie das im Artikel erwähnte, wäre als `userData` problemlos platzierbar:
+
+```
+// result in userData, after decryption and JSON parsing
+{
+ _isReactElement: true,
+ _store: {},
+ type: "body",
+ props: {
+   dangerouslySetInnerHTML: {
+     __html:
+     "<h1>Arbitrary HTML</h1>
+     <script>alert(‘No CSP Support :(')</script>
+     <a href='http://danlec.com'>link</a>"
+    }
+  }
+}
+```
+
+#### Randbemerkung
+
+_Im Kontext des Angriffsvektors "Prototype Pollution" genügt dies allein nicht, da `JSON.parse()` Objekt-Schlüssel wie `__proto__` als reine Property bedient (statt einen `Setter` zu verwenden). Die relevanten Properties, müssten in der weiteren Verarbeitung noch unter Nutzung eines `Setters` in einem JavaScript-Objekt platziert werden._
+**Bemerkenswert ist allerdings, dass der Backend Code (auch in der aktuellsten Version, `v1.1.16` at time of this writing) Nutzer-Input in einer Form verarbeitet, die hierzu als "door opener" dienen kann.** [Link zu Code Beispiel: Durch Location Betreiber frei wählbare Namen für "addititional data" Felder.](https://gitlab.com/lucaapp/web/-/blob/44e9db888015c8188900dc861f5fc69939ed6aab/services/contact-form/src/components/hooks/useRegister.js#L30) _Hier hier wären z.B. Input wie `additionalData-constructor` als Object-key möglich._
+
+### Schritt 3:
+
 t.b.d.
 
 - Sanitization ist schlecht ...
