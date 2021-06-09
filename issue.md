@@ -1,13 +1,13 @@
 # Luca Auffaellikeiten / Issues
 
-Liste von Auffälligkeiten/Problemen mit potentieller Sicherheitsrelevanz in der "Luca" Fachanwendung.
+Liste von Auffälligkeiten/Problemen mit potentieller Sicherheitsrelevanz in der "Luca"-Fachanwendung.
 
 Versionen zum Betrachtungszeitpunkt
 
 - Backend/Web Services aus `Web` Repository: v1.1.15
 - AndroidApp: v1.7.4
 
-Die Ausführungen **haben keinen Anspruch auf Vollständigkeit** und werden ggF nach Veröffentlichung ergänzt. Das Dokument unternimmt keine Anstregungen Termini, prozessuale oder funktionale Sachverhalte zu erläutern, die sich aus dem veröffentlichten Material zu "Luca" ergeben (Dokumentaion, Quellcode). Das Dokument nimmt an, dass LeserInnen die mit dem System vertraut sind.
+Die Ausführungen **haben keinen Anspruch auf Vollständigkeit** und werden ggf. nach Veröffentlichung ergänzt. Das Dokument unternimmt keine Anstregungen Termini, prozessuale oder funktionale Sachverhalte zu erläutern, die sich aus dem veröffentlichten Material zu "Luca" ergeben (Dokumentaion, Quellcode). Das Dokument nimmt an, dass LeserInnen mit dem System vertraut sind.
 
 # Referenzmaterial
 
@@ -19,9 +19,9 @@ Die Ausführungen **haben keinen Anspruch auf Vollständigkeit** und werden ggF 
 
 ## 1.1 Verschlüsselte Kontaktdaten "Encrypted User Data"
 
-Die Kontaktdaten des Nutzers werden als JSON string serialisiert und mit AES128 (Counter Mode) verschlüsselt dauerhaft auf dem Server abgelegt, sie umfassen:
+Die Kontaktdaten des Nutzers werden als JSON-String serialisiert und mit AES128 (Counter Mode) verschlüsselt dauerhaft auf dem Server abgelegt, sie umfassen:
 
-- numerische Version der Kontaktdaten (2 für AppNutzer, 2 für Schlüsselanhänger)
+- numerische Version der Kontaktdaten (2 für App-Nutzer, 2 für Schlüsselanhänger)
 - Vorname
 - Nachname
 - Telefonnummer
@@ -32,44 +32,44 @@ Die Kontaktdaten des Nutzers werden als JSON string serialisiert und mit AES128 
 - Stadt
 - Verification Secret (nur für Schlüsselanhänger)
 
-Der Schlüssel zu den Kontaktdaten (`data secret`) ist für App-Nutzer nur Lokal bekannt, wird aber in der "verschlüsselten Kontaktdaten Referenz" bei jedem Location check-in übermittelt (vergleiche Abschnitt "Checkin-traces"; erlaubt dem Gesundheitsamt die Entschlüsselung von Kontaktdaten nach Zustimmung eines Location Operators).
+Der Schlüssel zu den Kontaktdaten (`data secret`) ist für App-Nutzer nur Lokal bekannt, wird aber in der "verschlüsselten Kontaktdaten Referenz" bei jedem Location Check-In übermittelt (vergleiche Abschnitt "Check-In-Traces"; erlaubt dem Gesundheitsamt die Entschlüsselung von Kontaktdaten nach Zustimmung eines Location-Operators).
 
-Neben der Möglichkeit das `data secret` aus Location check-ins zu generieren (nach Zustimmung Location Operator), kann ein berechtigtes Gesundheitsamt den Schlüssel direkt vom Nutzer erhalten, wenn dieser ihn bereitstellt (im Rahmen des gesonderten Verfahrens zur Bereitstellung der Nutzer Location Historie an Gesundheitsamt).
+Neben der Möglichkeit, das `data secret` aus Location Check-Ins zu generieren (nach Zustimmung des Location-Operators), kann ein berechtigtes Gesundheitsamt den Schlüssel direkt vom Nutzer erhalten, wenn dieser ihn bereitstellt (im Rahmen des gesonderten Verfahrens zur Bereitstellung der Nutzer Location Historie an das Gesundheitsamt).
 
-**Das `data secret` für Schlüsselanhänger leitet sich aus der Seriennummer des Anhängers ab. Die Offenlegung einer Seriennummer ist also gleichbedeutend mit der Offenlegung des Crypto-Schlüssel zu den zentral gespeicherten Kontakdaten. Die Seriennummern der bisher produzierten Schlüsselanhänger, wurden durch das gleiche Unternehmen vergeben, welches auch das Luca-System entwickelt (Nexenio). Es ist daher davonn auszugehen, dass diese bekannt sind.**
+**Das `data secret` für Schlüsselanhänger leitet sich aus der Seriennummer des Anhängers ab. Die Offenlegung einer Seriennummer ist also gleichbedeutend mit der Offenlegung des Crypto-Schlüssels zu den zentral gespeicherten Kontakdaten. Die Seriennummern der bisher produzierten Schlüsselanhänger, wurden durch das gleiche Unternehmen vergeben, welches auch das Luca-System entwickelt (Nexenio). Es ist daher davon auszugehen, dass diese bekannt sind.**
 
-Die verschlüsselten Kontaktdaten werden als Base64 String mit maximaler Länge von 1024 Zeichen gespeichert. Es lassen sich hier also **beliebige Sequenzenzen** aus 768 Bytes AES verschlüsselte Daten speichern, die vollständig vom Nutzer kontrolliert werden (input). Eine Validierung dieser Eingabedaten, kann (und muss) nur im "Health Department Frontend" erfolgen, da die Daten im Normalfall erst beim Gesundheitsamt entschlüsselt werden.
+Die verschlüsselten Kontaktdaten werden als Base64-String mit maximaler Länge von 1024 Zeichen gespeichert. Es lassen sich hier also **beliebige Sequenzenzen** aus 768 Bytes AES verschlüsselte Daten speichern, die vollständig vom Nutzer kontrolliert werden (input). Eine Validierung dieser Eingabedaten, kann (und muss) nur im "Health Department Frontend" erfolgen, da die Daten im Normalfall erst beim Gesundheitsamt entschlüsselt werden.
 
-Zu den verschlüsselten Kontaktdaten wird eine Signatur angelegt. **Diese Signatur wird nicht über validierte Kontaktdaten gebildet, sondern über die "rohen" Binärdaten welche verschlüsselt werden (also 768 Bytes, die beliebig wählbar sind)**
+Zu den verschlüsselten Kontaktdaten wird eine Signatur angelegt. **Diese Signatur wird nicht über validierte Kontaktdaten gebildet, sondern über die "rohen" Binärdaten, welche verschlüsselt werden (also 768 Bytes, die beliebig wählbar sind)**
 
-## 1.2 Checkin-traces
+## 1.2 Check-In-Traces
 
 Ein `Trace` bildet im Luca-System den Besuch eines Nutzers in einer Location ab, er umfasst u.a.
 
-- checkin Zeitpunkt
-- checkout Zeitpunkt (wenn bereits erfolgt)
+- Check-In Zeitpunkt
+- Check-Out Zeitpunkt (wenn bereits erfolgt)
 - `TraceID` (zur eindeutigen Identifikation eines Traces; Nutzer-pseudonym, da mittels Einwegfunktion aus einzigartigem `tracing secret` des Nutzers und minutengenauem Zeitstempel generiert)
-- Geräte Type (iOS App, Android App oder Schluesselanhänger)
+- Geräte-Typ (iOS App, Android App oder Schluesselanhänger)
 - Location ID (verweist auf Datensatz mit **unverschlüsselten** Daten der Location)
 - **verschlüsselte** "Kontaktdatenreferenz" (`encrypted contact data reference`)
-  - setzt sich zusammen aus `UserID` eines registrierten Nutzers und dem `data secret` des Nutzers (der symmetrische Schlüssel zur entschlüsselung der Kontakdaten des Nutzers, welche bei Registrierung persistent in der Backend Datenbank abgelegt werden)
+  - setzt sich zusammen aus `UserID` eines registrierten Nutzers und dem `data secret` des Nutzers (der symmetrische Schlüssel zur Entschlüsselung der Kontakdaten des Nutzers, welche bei Registrierung persistent in der Backend-Datenbank abgelegt werden)
   - zweifach AES128 verschlüsselt
-  - der innere Schlüssel wird aus dem assymetrischem `Daily Key Pair` der Gesundheitsämter (gleich **für alle Gesundheitsaemter**) mittels DLIES abgeleitet
-  - für Schlüsselanhänger (badges) kommt bei der inneren Verschlüsselung nicht der `Daily Key Pair` der Gesundheitsämter zum Einsatz, sondern das sogenannte `Badge Key Pair` (ein Schlüsselpaar, welches **nicht täglich rotiert**, aber durch die Gesundheitsämter erstellt wird)
-  - der äußere Schlüssel wird aus dem assymetrischem Schlüsselpaar des jeweiligen `Location Operators` mittels DLIES abgeleitet (Wichtig: dieses assymetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations welche der Location Operator verwaltet gleich**)
-- "additional Trace Data" (optional, durch Location Operator entschlüsselbar)
+  - der innere Schlüssel wird aus dem assymetrischem `Daily Key Pair` der Gesundheitsämter (gleich **für alle Gesundheitsämter**) mittels DLIES abgeleitet
+  - für Schlüsselanhänger (Badges) kommt bei der inneren Verschlüsselung nicht der `Daily Key Pair` der Gesundheitsämter zum Einsatz, sondern das sogenannte `Badge Key Pair` (ein Schlüsselpaar, welches **nicht täglich rotiert**, aber durch die Gesundheitsämter erstellt wird)
+  - der äußere Schlüssel wird aus dem asymetrischem Schlüsselpaar des jeweiligen `Location-Operators` mittels DLIES abgeleitet (Wichtig: Dieses asymetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations, welche der Location-Operator verwaltet, gleich**)
+- "additional Trace Data" (optional, durch Location-Operator entschlüsselbar)
   - AES128 verschlüsselt
-  - der Schlüssel wird aus dem assymetrischem Schlüsselpaar des jeweiligen `Location Operators` mittels DLIES abgeleitet (Wichtig: dieses assymetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations welche der Location Operator verwaltet gleich**)
-  - "additional Data" können von Location Betreibern optional zusätzlich erhoben und entschlüsselt werden. Diese Daten gehen aber auch in die Ergebnisse der Location Abfragen durch Gesundheitsämter ein (z.B. in die Datenexporte). Darüberhinaus kommt dieser Datenansatz für sogennante private Meetings zum Einsatz, bei denen der Vor- und Nachname des gastes als "additional Data" zum Checkin codiert wird und so vom Gastgeber entschlüsselt und dargestellt werden kann.
+  - der Schlüssel wird aus dem asymetrischem Schlüsselpaar des jeweiligen `Location-Operators` mittels DLIES abgeleitet (Wichtig: Dieses assymetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations welche der Location-Operator verwaltet gleich**)
+  - "additional Data" können von Location-Betreibern zusätzlich optional erhoben und entschlüsselt werden. Diese Daten gehen aber auch in die Ergebnisse der Location-Abfragen durch Gesundheitsämter ein (z.B. in die Datenexporte). Darüber hinaus kommt dieser Datenansatz für sogennante `Private Treffen` zum Einsatz, bei denen der Vor- und Nachname des Gastes als "additional Data" zum Check-In codiert wird und so vom Gastgeber entschlüsselt und dargestellt werden kann.
   - Ob und welche Zusatzdaten von einer Location erhoben werden sollen, wird für jede Location in einem Schema festgehalten (API Endpunkt `api/v3/locations/additionalDataSchema/{locationId}`).
 
 ### 1.2.1 Ergänzungen zu "additional Trace Data" für Location Betreiber (Bestandteil der Checkin-Traces)
 
-Die "additional Trace Data" werden als Base64 String mit maximaler Länge von 4096 Zeichen gespeichert. Es lassen sich hier also **beliebige Byte-Sequenzenzen** von bis zu 3072 Bytes AES verschlüsselte Daten speichern, welche vollständig vom eincheckenden Nutzer kontrolliert werden (input). Eine Validierung dieser Eingabedaten, kann (und muss) an jeder Stelle erfolgen, an der die Daten entschlüsselt werden (Input) und in der Folge verarbeitet und ausgegeben werden (Output). Solche Stellen sind beispielsweise:
+Die "additional Trace Data" werden als Base64-String mit einer maximalen Länge von 4096 Zeichen gespeichert. Es lassen sich hier also **beliebige Byte-Sequenzenzen** von bis zu 3072 Bytes AES verschlüsselte Daten speichern, welche vollständig vom eincheckenden Nutzer kontrolliert werden (Input). Eine Validierung dieser Eingabedaten kann (und muss) an jeder Stelle erfolgen, an der die Daten entschlüsselt werden (Input) und in der Folge verarbeitet und ausgegeben werden (Output). Solche Stellen sind beispielsweise:
 
-1. Frontend für Location Betreiber (bisher werden hier "additional Data" nicht angezeigt, es wurde aber Funktionalität hinzugefügt, welche Tischnummern als additional Data führt und im Location Frontend verarbeitet und darstellt.)
-2. App, bei privaten Treffen (für private Meetings werden Ersteller des Meetings Vor- und Nachname der Gäste in der App angezeigt. Die dargestellten Daten basieren auf den "additional Data" welche der Gast - in Form eines 3072 Byte großen Blocks beliebiger Daten - beim einchecken bereitstellt)
-3. **Health Department Frontend** (hier werden neben den Kontaktdaten der Gäste einer Location auch alle "additional Data" die die Gäste bereitgestellt haben verarbeitet)
+1. Frontend für Location-Betreiber (bisher werden hier "additional Data" nicht angezeigt, es wurde aber eine Funktionalität hinzugefügt, welche Tischnummern als "additional Data" führt und im Location-Frontend verarbeitet und darstellt.)
+2. App, bei privaten Treffen (für private Treffen werden Ersteller des Treffens Vor- und Nachname der Gäste in der App angezeigt. Die dargestellten Daten basieren auf den "additional Data" welche der Gast - in Form eines 3072 Byte großen Blocks beliebiger Daten - beim Einchecken bereitstellt)
+3. **Health Department Frontend** (hier werden neben den Kontaktdaten der Gäste einer Location auch alle "additional Data", welche die Gäste bereitgestellt haben, verarbeitet)
 
 # 2. Problemstellungen
 
