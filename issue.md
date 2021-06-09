@@ -514,16 +514,103 @@ Die beinhaltet auch "nested objects", die z.B. genutzt werden können, um bei ei
 _Im Kontext des Angriffsvektors "Prototype Pollution" genügt dies allein nicht, da `JSON.parse()` Objekt-Schlüssel wie `__proto__` als reine Property bedient (statt einen `Setter` zu verwenden). Die relevanten Properties, müssten in der weiteren Verarbeitung noch unter Nutzung eines `Setters` in einem JavaScript-Objekt platziert werden._
 **Bemerkenswert ist allerdings, dass der Backend Code (auch in der aktuellsten Version, `v1.1.16` at time of this writing) Nutzer-Input in einer Form verarbeitet, die hierzu als "door opener" dienen kann.** [Link zu Code Beispiel: Durch Location Betreiber frei wählbare Namen für "addititional data" Felder.](https://gitlab.com/lucaapp/web/-/blob/44e9db888015c8188900dc861f5fc69939ed6aab/services/contact-form/src/components/hooks/useRegister.js#L30) _Hier hier wären z.B. Input wie `additionalData-constructor` als Object-key möglich._
 
-### Schritt 3:
+### Schritt 3: Abruf der Daten als state von `React` Komponenten (erneuter Kontext-Wechsel)
 
-t.b.d.
+Für "Schritt 2" wurde festgehalten, dass unvaldierte Nutzerdaten durch die Funktion [decryptTrace (link)](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L92) als JavaScript Objekte bereitgestellt werden (nach mehreren Kontextwechseln). Abgesehen vom hoffentlich vorhandenen Exception-Handling beim Dekodieren der Daten, findet hierbei so gut wie keine Filterung statt. **Es sei daran erinnert, dass die Eingabe-Validierung unterlassen wird, obwohl sehr genaue Informationen über die erwartete Struktur und Semantik dieser Daten vorliegen.**
+
+Diese Daten werden aber nicht einfach in die jeweiligen Ausgabe-Kontexte "gepusht", sondern die Funktion `decryptTrace` muss aufgerufen werden ("pull" Prinzip). Da es sich beim "Health Department Frontend" um eine JavaScript-basierte Web-Applikation handelt, deren Logik weitestgehend "lokal" (im Browser des Gesundheitsamtes) läuft, könnte man annehmen, dass die Daten zur Verarbeitung keinen weiteren Kontext-Wechsel durchlaufen, bevor sie den vorgesehenen Ausgabe-Kontexten zugeführt werden. Die Implementierung spricht hier allerdings eine andere Sprache.
+
+Die besagte `decryptTrace` Funktion wird [hier (Code Link)](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L57) aufgerufen. Sie wird auf ein ganzes Array von Kontaktdaten angewendet (die Daten die der "Gästeliste" einer Location zu einem definierten Zeitpunkt entsprechen). Weniger entscheidend ist dabei die Funktion die unmittelbar im Anschluss invalide Datensätze herausfiltern soll ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L61)), denn hier wird lediglich geprüft, ob die "Check-ins" zu denen die Kontaktdaten entschlüsselt wurden, über eine gültige Signatur verfügt haben. (Dies kann eine AngreiferIn ohne Probleme sicherstellen. Auch, können schadhafte Kontakdaten problemlos mit gültigen Signaturen versehen werden).
+
+Entscheidend ist, wo dieser Code-Anteil ausgeführt wird. Denn, die `ecryptTrace` Funktion wird in einer anonymen JavaScript Funktion ausgeführt, welche als Argument an eine `useEffect` Funktion übergeben wird ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L44)).
+
+Die `useEffect` Funktion ist allerdings nicht mehr Bestandteil des Applikationscodes des Luca-Systems, sondern gehört zu dem bereits erwähnten `React` Framework. Es handelt sich dabei um eine (gängige) Drittanbieter-Library, deren Kernzweck die Erstellung von JavaScript-basierten Benutzerinterfaces ist ("Web UI"). `React` ist weder keine Komponente zur sicheren Verwaltung, Verarbeitung oder Modellierung von Daten. Sie geht sehr wohl mit Daten um ("state" des User Intefaces) und platziert auch einige Sicherheitsmaßnahmen - aber eben nur für den Ausgabe-Kontext eine Web-basierten User Interfaces (z.B. Mitigation von Cross-Site-Scripting beim Darstellen von Nutzerkontrollierten Inhalten). `React` behandelt explizit nicht andere Ausgabekontexte. Die `useEffect` Funktion, bildet beispielsweise einen sogenannten "hook" ab, die den **"state" des User Interfaces** aktualisiert, wenn sich Daten ändern, welche in einer `React` Komponente dargestellt werden (vergleiche [React Dokumentation (Link)](https://reactjs.org/docs/hooks-effect.html)).Im Konkreten Fall heißt das, die Daten werden wie beschrieben verarbeitet, sobald im User Interface des Gesundheitsamtes, die Darstellung für "Gästelisten (Kontaktlisten)" einer Person geladen werden.
+
+Dies mag zunächst sinnvoll erscheinen, wenn denn dise Darstellung der einzige Ausgabe-Kontext wäre. In einem solchen Fall könnte man es sogar riskieren, das Output-Encoding für den Kontext der Web-Basierten Darstellung zu unterlassen, und sich allein auf die Schutzmaßnahmen des `React` Frameworks zu verlassen (und dabei hoffen, dass nie ein anderes UI Framework verwendet werden muss). **Allerdings handelt es sich nicht um den einzigen Ausgabe-Kontext! Die unvalidierten Kontaktdaten Objekte, welche nun zentral im "React state" hinterlegt sind, sind "Single Source of Truth" für weitere Ausgabe-Kontexte. Neben Export-Formaten wie SORMAS, Excel und CSV, dient dieser "User Interface State" auch als Input für Anfragen and die SORMAS REST API.**
+
+Der "data flow" innerhalb des React-Kontextes wird noch konfuser:
+
+Der `useEffekt` hook, welcher die Daten verarbeitet, ist Bestandteil der "React Komponente" `ContactPersonViewRaw` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L22)), welche wiederum in eine `React.memo` Komponente mit dem Namen `ContactPersonView` eingebettet wird ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L108)). Liest sich kompliziert? Ist es auch! Von sauberer, nachvollziehbarer und gut dokumentierter Code-Struktur kann hier nicht mehr die Rede sein. Mit Blick auf die Daten die hier verarbeitet werden und das - mangels Filterung - bestehende Risikopotential, erscheint der Code nicht nur unprofessionell, sondern gefährlich. Das Stichwort "Client Side Template Injection", welches im `React Kontext` schalgartig an Relevanz gewinnt, wurde schon genannt. Man kann nur hoffen, dass aller React Komponenten, die diese Daten verwenden entsprechend getestet und abgesichert sind.
+
+Zur Erinnerung: Bisher gab es **für keinen Kontextwechsel den die (beliebig gestaltbaren) Nutzerdaten durchliefen eine ausreichende Input Validierung**. Es gab sie weder syntaktisch, noch strukurell, noch semantisch!
+
+Der behandelte Code gehört, wie ausgeführt, zu einer `React` Komponente. Dies wird auch am Dateinamen `ContactPersonView.react.js` ersichtlich ([Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js)). Nochmals unterstreichen möchte ich dies, um den Kontext-Wechsel herauszustellen. Es findet hier nicht nur ein funktionaler Kontextwechsel der Daten statt (in das User Interface), sondern auch ein syntaktischer Kontextwechsel: `React` bietet als Template-Library Sprachfunktionen, die über die Syntax von HTML oder JavaScript hinaus gehen - eine sogenannte Templatesprache ([ersichtlich am verlinkten Code-Abschnitt, der weder gültiges HTML noch JavaScript darstellen würde](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L86)).
+
+Auch in diesem Kontext von React-Templates existieren Sprach-Konstrukte, die bei fehlender Input Validierung oder ungenügendem Output Encoding als Angriffs-Verktoren nutzbar gemacht werden können ("Template Injection" wurde hier bereits als Beispiel genannt).
+
+Als wäre der Weg der Daten bis zu den ausgabe-Kontexten nicht schon verworren genug, ist man hier offensichtlich bemüht die Dinge noch komplizierter, **und damit noch Fehler-anfälliger** , zu machen. Ich beschreibe dies nur noch in Stichpunkten:
+
+- Die React Komponente `Header.react.js` übernimmt das `traces` Argument ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L19))
+- Die Komponente wird unter dem Namen `Header` exportiert ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L83)) und in die (bereits vorgestellte) Komponente [ContactPersonView.react.js (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92) eingebettet. Die `Header` Komponente übernimmt dabei das als Argument namens `traces` ein Array, welches **für jeden Eintrag** eines der ausführlich behandelten `userData` Objekte enthält (welche nie validiert wurden).  
+  Erläuterungen über den Weg der [hier (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L57) erstellten `traces` (jeweils mit ungefilterten `userData` Objekten), zum `selectedTraces` Array welches [hier (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92) verwendet wird, erspare ich mir.  
+  Grund: Die "Filterung" hat nur funktionalen Charakter (Ausschluss von Kontaktdaten-Einträgen aus der Gästeliste, die eine ausgewählte minimal-Kontaktzeit unterschreiten. "Per default" werden hier zunächst alle Kontakte gelistet).
+- Die React Komponente `Header.react.js` bettet weitere React Komponenten ein, welche verschiedene Ausgabe-Konexte bedienen sollen. **Diese Sub-Komponenten haben keine Relevanz in der Darstellung des User Interfaces!** Der relevante Anteil für die (dynamische) Darstellung im User Interface, ist hier lediglich ein Download-Button ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L76))
+- Das eigentliche Data-Processing(und das **je Ausgabe-Kontext** benötigte Output-Encoding, wird auf weitere (zweckentfremdete) User Interface Komponenten deligiert, an die das `traces` Array mit `userData` Objekten weitergereicht wird, im einzelnen:
+  - an eine React Komponente für den CSV Export ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L50)), welche hier implementiert wird: [CSVDownload (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L313)
+  - an eine React Komponente für den Excel Export ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L53)), welche hier implementiert wird: [ExcelDownload (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L84)
+  - an eine React Komponente für den **CSV-basierten SORMAS Export** ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L56)), welche hier implementiert wird: [SormasDownload (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L508)
+  - (wenn aktiviert) an eine React Komponente für den Export über **die SORMAS Rest API** ([Code Link 1](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L60), [Code Link 2](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L38)), welche hier implementiert wird: [SormasModal (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/SormasModal/SormasModal.react.js).
+    - die `SormasModal` Komponente erweiterter jeden Eintrag `traces` Array um eine `uuid` property und speichert das neue Array in `newTraces`. Das ungefilterte `userData` Objekt wird dabei für jeden Eintrag (mit allen weiteren Properties eines `trace`) übernommen ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/SormasModal/SormasModal.react.js#L49)).
+    - Unmittelbar im Anschluss wird das `newTraces` array (mit den ungefilterten `userData` Objekten) an den `sormasClient.personPush()` Funktion weitergegeben ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/SormasModal/SormasModal.react.js#L52)). Die Funktion ist hier implementiert und nimmt für die Properties der `userData` **noch immer keine Input Validierung vor**: [Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/network/sormas.js#L35)
+
+## 3.5 Zwischenfazit (Gefahr für SORMAS)
+
+Bisher wurde ausschließlich die `v1.1.11` des Luca "Health Department Frontends" betrachtet. Diese Betrachtung dieser Version wurde auf einen sehr konkreten Fokus reduziert, die Frage:
+
+Sind Gesundheitsämter durch den Angriffsvektor "CSV Injection" gefährdet?
+
+Auslöser der Betrachtung, war ein eilig nachgereichter Patch, der in diese Luca-Version - **im engen zeitlichen Zusammenhang zu einer Presse anfrage zum Thema "CSV Injection"** - eingeflossen ist. Im gleichen Zuge wurde durch die Luca-Entwickler kommuniziert, dass das System entlang der OWASP Emfehlungen gegen diesen Angriffs-Vektor abgesichert sei.
+
+Weiter wurde die Betrachtung von Nutzer-kontrollierten Eingabedaten, welche im Luca-System verarbeitet werden, auf "Kontaktdaten" reduziert.
+
+Trotz dieses engen Betrachtungsfokus, zeigen sich schnell eklatante Mängel im grundsätzlichen Umgang mit solchen unvalidierten Daten. Insbesondere, wurde aufgezeigt, dass die Daten verschiedene Sprach-Kontexte durchlaufen, ohne jemals validiert oder gar konform zum Zielkontext kodiert werden. Ich möchte dies hier aus folgenden Gründen festhalten:
+
+- Code Injection ist in vielen dieser Kontexte möglich, aber Mitigation beschränkt sich hier offensichtlich auf den Vektor "CSV Injection" (auch wenn disbezügliche Maßnahmen bisher noch nicht ersichtlich waren). Für den Kontext der SORMAS Rest API findet zum Beispiel keinerlei Input- oder Output-Filterung statt.
+- Eingabe Validierungen an den richtigen Stellen, könnten bereits zahlreiche Injection-Vektoren mitigieren (Code Injections die auf den Datenbank-Kontext abzielen, JavaScript Injection/Cross-Site-Scripting, Template Injection, Prototype Pollution ... um nur einige zu nennen). Dies wäre allein deshalb möglich, weil für die Kontaktdaten bereits nach Entschlüsselung eine klar definierte Struktur erwartet wird. Diese wird aber nicht erzwungen. Ebensowenig werden semantische Regeln an den Input angelegt, die allein viele Zeichen ausschließen könnten, welche für Code Injection in den verschiedenen Kontexten nötig wären.
+- **Die Daten-Handhabung in der Implementierung bewegt sich abseits aller "best practices". Sie ist übermäßig kompliziert, sie ist nicht konsistent (redundante Funktionalität mit unterschiedlicher Implementierung), sie erscheint hochgradig fehleranfällig. Code wie der vorliegende ist äußerst schwer zu testen, nicht nur unter dem Sicherheitsaspekt, auch funktional! (Das in Abschnitt 2.8.2 dargestellte Problem zu Schlüsselanhängern, die durch Gesundheitsämter nicht auswertbar waren, unterstreicht diese Annahme)**
+- Die Diskrepanz zwischen "mangelnder Sorgfalt" und "Sensitivität der von Luca verarbeiteten Daten" lässt nur zwei Schlüsse zu: Es fehlt den Entwicklern an Erfahrung oder es wird vorsätzlich ein Sicherheitsniveau beworben, von dem man weiß, dass es nicht gehalten werden kann.
+- Ein Blick in den Code von System-Komponenten, welche außerhalb des hier gewählten Betrachtungsfokus liegen, zeigt keine gesteigerte Qualität. Man muss daher annehmen, dass das gesammte System mit Implementierungsmängeln behaftet ist, welche unmittelbar in Sicherheitsrisiken münden.
+- Statt den sicheren Umgang mit Daten von hochgradig-sensitivem Character in gut definierten, sauber ausgestalten und nachvollziehbar implementierten Prozessen abzubilden, vertraut man diese Daten externen Drittanbieter-Bibliotheken an (Beispiele folgen). Hierbei wird die Kontrolle über die **robuste** Datenverarbeitung nicht nur vollständig abgegeben, es sind darüberhinaus keinerlei Tests erkennbar, die sicherstellen könnten, dass die ausgelagerten Funktionalitäten auch die erwarteten Ergebnisse liefern. Dies wiegt umso schwerer, wenn komplexe Drittanbieter-Libraries eingebunden werden, um am Ende nur rudimentäre Teilfunktionalitäten zu nutzen, welche sich innerhalb des Luca-Codes mit geringen Aufwand kontrolliert abbilden liesen. Das fehlende Verständnis für das Paradigma "Security-By-Design" wird hier überdeutlich.
+
+Bevor ich mich den für "CSV Injection" relevanten Output-Kontexten zuwende, möchte ich den Blick nochmals auf den Kontext der "SORMAS Rest API" wenden.
+
+## 3.6 Output-Kontext SORMAS Rest-API
+
+t.b.d
+
+Die bereits benannnte Funktion `personsPush` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/network/sormas.js#L35)) ist für die wie folgt implementiert:
+
+```
+  const personsPush = (traces, currentTime = Date.now()) =>
+    fetch(`${SORMAS_REST_API}/persons/push`, {
+      headers,
+      method: 'POST',
+      body: JSON.stringify(
+        traces.map(trace => ({
+          uuid: trace.uuid,
+          firstName: trace.userData.fn,
+          lastName: trace.userData.ln,
+          emailAddress: trace.userData.e,
+          phone: trace.userData.pn,
+          address: {
+            uuid: trace.uuid,
+            city: trace.userData.c,
+            changeDate: currentTime,
+            creationDate: currentTime,
+            street: trace.userData.st,
+            postalCode: trace.userData.pc,
+            houseNumber: trace.userData.hn,
+            addressType: 'HOME',
+          },
+        }))
+      ),
+    });
+```
+
+## notes
 
 - Sanitization ist schlecht ...
 - keys von "additional data" sind auch böse
-
-In den nächsten Abschnitten
-
-Wo anzusetzen: Dort wo validation nicht umgangen werden kann.
 
 Notes: JSON not strictly typed (like, f.e. Protobuf)
 
@@ -532,25 +619,7 @@ Output Encoding:
 - sub Kontext beachten, bspw für Browser output: in HTML Kontext eingebettets JavaScript eingebettetes Javascript, bei Einsatz von Rendering Frameworks wie React, VueJS, Angular die Sprachkontext der Template-Engine (vergleiche Template Injection)
 - wann Output encoding (vor Output, um z.B. Double Encoding zu vermeiden)
 
-t.b.d.
-
-Allgemeine Erläuterungen, Rückblick CSV als Beispiel (nach wie vor) mangelhafter Filterung. Fokus auf SORMAS API (keine Filterung).
-
-Anmerkung nicht betrachteter Bestandteile (insb. Location Frontend)
-
-### Input
-
-1. location data (name address etc) --> Binary Blob (expected JSON)
-2. location additional data schema --> ?Binary Blob?
-
-- bei unverschlüsselten Daten Inputvalidation durch DB Schema
-
-### Output Contexts
-
-- JS Objects (expects parsable JSON strings, Exception Handling applied, but no validation of input)
-- Postgres Queries (protected by Sequelize, keine Pruefung)
-- React state (komlettes data processing, einbindung 3rd party libs)
-- SORMAS Rest API (ungefiltert)
+- Anmerkung zu nicht betrachteten Bestandteile (insb. Location Frontend)
 
 ## Ursachen persönliche Meinung
 
@@ -562,11 +631,9 @@ Anmerkung nicht betrachteter Bestandteile (insb. Location Frontend)
 
 ## sonstiges
 
-- KEINE Löschung der Kontaktdaten?
-
 - private meeting limit (50 Besucher) gilt nur für echtes private meeting https://gitlab.com/lucaapp/web/-/blob/6f426776c9e569fc21e0bd29a52092803e21fa60/services/backend/src/routes/v3/traces.js#L60
 
 ## Kryptoschmutz
 
 - over engineered ... Hybridansatz, obwohl Ressourcen für asymmetrisch
-- Schlüsselanhänger Katastrophal (V3)
+- [already covered] Schlüsselanhänger Katastrophal (V3)
