@@ -54,12 +54,12 @@ Ein `Trace` bildet im Luca-System den Besuch eines Nutzers in einer Location ab,
 - **verschlüsselte** "Kontaktdatenreferenz" (`encrypted contact data reference`)
   - setzt sich zusammen aus `UserID` eines registrierten Nutzers und dem `data secret` des Nutzers (der symmetrische Schlüssel zur Entschlüsselung der Kontakdaten des Nutzers, welche bei Registrierung persistent in der Backend-Datenbank abgelegt werden)
   - zweifach AES128 verschlüsselt
-  - der innere Schlüssel wird aus dem assymetrischem `Daily Key Pair` der Gesundheitsämter (gleich **für alle Gesundheitsämter**) mittels DLIES abgeleitet
+  - der innere Schlüssel wird aus dem asymmetrischem `Daily Key Pair` der Gesundheitsämter (gleich **für alle Gesundheitsämter**) mittels DLIES abgeleitet
   - für Schlüsselanhänger (Badges) kommt bei der inneren Verschlüsselung nicht der `Daily Key Pair` der Gesundheitsämter zum Einsatz, sondern das sogenannte `Badge Key Pair` (ein Schlüsselpaar, welches **nicht täglich rotiert**, aber durch die Gesundheitsämter erstellt wird)
-  - der äußere Schlüssel wird aus dem asymetrischem Schlüsselpaar des jeweiligen `Location-Operators` mittels DLIES abgeleitet (Wichtig: Dieses asymetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations, welche der Location-Operator verwaltet, gleich**)
+  - der äußere Schlüssel wird aus dem asymmetrischem Schlüsselpaar des jeweiligen `Location-Operators` mittels DLIES abgeleitet (Wichtig: Dieses asymmetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations, welche der Location-Operator verwaltet, gleich**)
 - "additional Trace Data" (optional, durch Location-Operator entschlüsselbar)
   - AES128 verschlüsselt
-  - der Schlüssel wird aus dem asymetrischem Schlüsselpaar des jeweiligen `Location-Operators` mittels DLIES abgeleitet (Wichtig: Dieses assymetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations welche der Location-Operator verwaltet gleich**)
+  - der Schlüssel wird aus dem asymmetrischem Schlüsselpaar des jeweiligen `Location-Operators` mittels DLIES abgeleitet (Wichtig: Dieses asymmetrische Schlüsselpaar existiert nicht je Location, sondern es ist **für alle LocationGroups und Locations welche der Location-Operator verwaltet gleich**)
   - "additional Data" können von Location-Betreibern zusätzlich optional erhoben und entschlüsselt werden. Diese Daten gehen aber auch in die Ergebnisse der Location-Abfragen durch Gesundheitsämter ein (z.B. in die Datenexporte). Darüber hinaus kommt dieser Datenansatz für sogennante `Private Treffen` zum Einsatz, bei denen der Vor- und Nachname des Gastes als "additional Data" zum Check-In codiert wird und so vom Gastgeber entschlüsselt und dargestellt werden kann.
   - Ob und welche Zusatzdaten von einer Location erhoben werden sollen, wird für jede Location in einem Schema festgehalten (API Endpunkt `api/v3/locations/additionalDataSchema/{locationId}`).
 
@@ -105,14 +105,14 @@ Durch die Speicherung von IP-Adressen mit ableitbaren Zugriffszeiten ergeben sic
 
 ## 2.2 [Backend API] Unauthenticated access EP `/v3/locations/traces/{accessId}`
 
-- Endpunkt erlaubt Abfrage von Traces einer Location ohne Authentifizierung als Operator
-- benötigt wird zur Abfrage die `AccessID` der Location
-  - wird bei Registrierung der Location automatisch generiert (durch PostgresDB, beim Anlegen des Datensatzes)
-  - Verwendung als Query-Parameter (ohne weitere Authentifizierung) birgt Risiko der Offenlegung (bspw. Man-in-the-Middle-Angriffe im WiFi-Netzwerk einer Location, Logging des Query-Path an Intermediaries in komplexeren Enterprise IT-Netzen/ggf. Übermittlung von Queries an externe Security Services, etc.)
-- Ableitbare Informationen
+- Der Endpunkt erlaubt Abfrage von Traces einer Location ohne Authentifizierung als Operator
+- Benötigt wird zur Abfrage die `AccessID` der Location
+  - Diese wird bei der Registrierung der Location automatisch generiert (durch PostgresDB, beim Anlegen des Datensatzes)
+  - Die Verwendung der `AccessId` als Query-Parameter (ohne weitere Authentifizierung), birgt das Risiko der ihrer Offenlegung (bspw. bei Person-in-the-Middle-Angriffe im WiFi-Netzwerk einer Location oder beim Logging des Query-Path an Intermediaries in komplexeren Enterprise IT-Netzen/ggf. Übermittlung von Queries an externe Security Services, etc.)
+- Abfragbare Informationen für Locations mit bekannter gewordener `AccessId`
   - individuelle Check-In- / Check-Out-Zeitpunkte
   - Typ des Checkins (Android-App / iOS-App / Schlüsselanhänger)
-  - verwendete TraceID; die **TraceID ist Nutzerpseudonym**, verschiedene Nutzer können nie gleiche TraceIDs generieren (vgl. Referenzmaterial 1 und 2). Für Schlüsselanhänger (Badges), zu denen der QR-Code (Tracing Seed) oder die Seriennummer (erlaubt Ableitung aller geheimen Nutzerschlüssel) bekannt geworden ist, **ist eine direkte Nutzer-Zuordnung der TraceIDs möglich**. 
+  - verwendete TraceID; die **TraceID ist Nutzerpseudonym**, verschiedene Nutzer können nie gleiche TraceIDs generieren (vgl. Referenzmaterial 1 und 2). Für Schlüsselanhänger (Badges), zu denen der QR-Code (Tracing Seed) oder die Seriennummer (erlaubt Ableitung aller geheimen Nutzerschlüssel) bekannt geworden ist, **ist eine direkte Nutzer-Zuordnung der TraceIDs möglich**.
 
 ## 2.3 [Backend, Health Department Frontend] Fehlende Plausibilitätsprüfungen (exemplarisch)
 
@@ -140,7 +140,7 @@ Die Luca-Webseite bietet einen [Postleitzahlen-basierten Verfügbarkeitstest (li
 
 ## 2.4 [Location Frontend] Permanentes Vorhalten des Privaten Schlüssels des Location Operators in der Browser Session
 
-Beim Registrieren eines "Location Operators" (Betreiber einer oder mehrerer Locations), wird ein asymetrisches Schlüsselpaar erstellt, für welches der private Schlüsselanteil im Registrierungsprozess einmalig zum Download angeboten wird. Dieser private Schlüssel ist nochmals mit AES128 umschlüsselt (encrypted private key). Der zugehörige Entschlüsselungsschlüssel (`private key secret`) ist im Backend gespeichert und kann nur mittels authentifizierter Session des `Location Operators` abgerufen werden.
+Beim Registrieren eines "Location Operators" (Betreiber einer oder mehrerer Locations), wird ein asymmetrisches Schlüsselpaar erstellt, für welches der private Schlüsselanteil im Registrierungsprozess einmalig zum Download angeboten wird. Dieser private Schlüssel ist nochmals mit AES128 umschlüsselt (encrypted private key). Der zugehörige Entschlüsselungsschlüssel (`private key secret`) ist im Backend gespeichert und kann nur mittels authentifizierter Session des `Location Operators` abgerufen werden.
 
 Der private Schlüssel des Location-Betreibers kann u.a. dazu genutzt werden, die "additional Trace Data" eingecheckter Gäste zu entschlüsseln (vgl. Abschnitt 1.2 und 1.2.1) oder die äußere Verschlüsselung der "encrypted contact data reference" (vgl. Unterpunkt in Abschnitt 1.2) aufzuheben.
 
@@ -148,7 +148,7 @@ Die Möglichkeit, diese Entschlüsselungen vorzunehmen besteht für einen author
 
 Bisher wurde der private Schlüssel des "Location-Operators" nur im Bedarfsfall in den Browser geladen, nämlich dann, wenn eine Abfrage der Gäste-Check-Ins durch ein Gesundheitsamt erfolgt ist und der Location-Operator dieser Anfrage nachkommt. Das Risiko hierbei ist überschaubar, da der private Schlüssel nur temporär im Browser-Kontext verfügbar war.
 
-Mit einem Update der Web-Services Anfang Mai (v1.1.8?), wurde die Funktionalität des Location-Frontends allerdings so angepasst, dass der Location-Operator beim Login aufgefordert wird, seinen privaten Schlüssel in die Browser-Session zu laden.
+Mit einem Update der Web-Services Anfang Mai (v1.1.8), wurde die Funktionalität des Location-Frontends allerdings so angepasst, dass der Location-Operator beim Login aufgefordert wird, seinen privaten Schlüssel in die Browser-Session zu laden.
 
 Dies schwächt die Schlüssel-Sicherheit im Kontext möglicher Angriffe auf den Browser immens. Als Grund für diese Maßnahme wurde angeführt, dass der Location-Operator nur so die Tischnummern der Gäste-Checkins entschlüsseln kann (diese werden als "additional data" im Check-In Trace hinterlegt).
 
@@ -232,7 +232,7 @@ Die Badges repräsentieren Nutzer (analog zu Nutzern, welche sich per Luca-App r
 
 - `tracingSeed`: Basis zur Ableitung des `tracing secret`. Aus dem `tracing secret` können **alle** `TraceIDs` generiert werden, welche für Check-Ins eines Schlüsselanhängers verwendet werden. Ist dieses Secret bekannt, können damit alle Locations, bei denen der Schlüsselanhänger eingecheckt war, abgeleitet werden (`TraceIDs` für Check-Ins und zugeordnete Locations werden im Backend unverschlüsselt gespeichert). Beliebige `TraceIDs` waren zeitweise ohne Authentifizierung von außen abfragbar, sodass Check-In-Historien für Schlüsselanhänger wiederhergestellt werden konnten (["LucaTrack"](http://lucatrack.de)). Mittlerweile werden API-Anfragen für Check-In-Daten zu `TraceIDs`, welche Schlüsselanhängern zugeordnet sind, nicht mehr beantwortet (vergleiche [code link 1](https://gitlab.com/lucaapp/web/-/blob/14098e0683114479ddf3e399b79f788dc6b88e33/services/backend/src/routes/v3/traces.js#L137), [code link 2](https://gitlab.com/lucaapp/web/-/blob/14098e0683114479ddf3e399b79f788dc6b88e33/services/backend/src/routes/v3/traces.js#L168)), dennoch liegen die entsprechenden Daten unverschlüsselt in der Postgres-Datenbank des Backends. **Das `TracingSeed`, welches zur Zuordnung der Check-In-Historie benötigt wird, leitet sich aus der Seriennummer eines Badges ab, ist aber auch Bestandteil des QR-Codes (welcher naturgemäß für Check-Ins gezeigt werden muss)**
 - `user data secret`: Der symmetrische AES128-Schlüssel zu den verschlüsselten Kontaktdaten des Nutzers, welche in der Datenbank des Luca-Backends gespeichert sind (`encrypted contact data`, vergleiche Abschnit 1.1). **Das `user data secret` leitet sich aus der Badge-Seriennummer ab und ist nicht Bestandteil des QR-Codes. Die Seriennummer ist aber auf Vorder- oder Rückseite des Badges aufgedruckt.**
-- `user key pair`: Aus der Seriennummer eines Badges leitet sich auch ein asymetrisches Schlüsselpaar ab. Der öffentliche Schlüssel, der sich darazs ergibt, wird (neben der UserID) vom Backend als Auswahlkriterium für Nutzerdatensätze herangezogen.  
+- `user key pair`: Aus der Seriennummer eines Badges leitet sich auch ein asymmetrisches Schlüsselpaar ab. Der öffentliche Schlüssel, der sich darazs ergibt, wird (neben der UserID) vom Backend als Auswahlkriterium für Nutzerdatensätze herangezogen.  
   So war es beispielsweise möglich, für Badges der Version 3 mit bekannter Seriennummern die Kontaktdaten der Badge-Nutzer zu überschreiben, sofern ein Datensatz für den Public Key des `user key pair` vorhanden war (für existierende Badges ist dieser Datensatz immer vorhanden, für Badges der Version 4 war dies nicht durchführbar, da der komprimierte public key - also ein anderes Format - als Identifier in der Postgres-Datenbank diente). Die gemeldete Sicherheitslücke wurde in einem Gitlab Issue dokumentiert ([link](https://gitlab.com/lucaapp/web/-/issues/16)) und zum "error report" umdeklariert (betroffen war hier das IT-Sicherheits-Schutzziel "Integrität").  
   Aufgrund des abweichenden Public Key Formates lässt sich durch den Betreiber auch feststellen, wie viele Badges der Version 4 im Einsatz sind (für die Datensätze von App-Nutzern, Nutzern die über Kontaktformulare angelegt wurden und Nutzern von Badges der Version 3 werden **unkomprimierte** public keys verwendet).  
   **Das `user key pais` leitet sich aus der Badge-Seriennummer ab und ist nicht Bestandteil des QR-Codes. Die Seriennummer ist aber auf Vorder- oder Rückseite des Badges aufgedruckt.**
@@ -240,7 +240,10 @@ Die Badges repräsentieren Nutzer (analog zu Nutzern, welche sich per Luca-App r
 Zusammenfassend kann man sagen: Das gesamte Schlüsselmaterial für Badges leitet sich aus der Seriennummer ab. Die Seriennummer selbst repräsentiert dabei die Base32-Crockford-kodierte Form eines 56Bit Zufallswertes (vom sogenannten "Badge Generator" festgelegt). Die Funktion des "Badge Generators" entfällt derzeit auf "neXenio" (also die Firma, die auch das Luca-System selbst entwickelt und Security-Issues handhabt), wie in einem weiteren Gitlab Issue dokumentiert wurde ([link](https://gitlab.com/lucaapp/web/-/issues/15)):
 
 ```
-... Currently, there are 29,000 badges in use, we [neXenio] do not have a distinction in V3/V4 here. These are currently created by a member of the security team of neXenio on behalf of culture4life and luca and are directly transferred to the producer in NRW without any detours. ...
+... Currently, there are 29,000 badges in use, we [neXenio] do not have a distinction in
+V3/V4 here. These are currently created by a member of the security team of neXenio on
+behalf of culture4life and luca and are directly transferred to the producer in NRW without
+any detours. ...
 ```
 
 Technische Maßnahmen, die eine missbräuchliche Nutzung - der beim "Badge Generator" bekannten Seriennummern aller Schlüsselanhänger - verhindern, sind derzeit nicht aus dem Quellcode ableitbar.
@@ -306,7 +309,9 @@ Auch hier wurde ein gemeldeter Security-Issue zu einem "Error Report" umdeklarie
 In dem zugehörigen [Gitlab Issue](https://gitlab.com/lucaapp/web/-/issues/15) wurde dazu folgende Bemerkung veröffentlicht:
 
 ```
-We followed up on this issue. We were able to determine that history retrieval via serial number was no longer possible due to the incorrect renaming of the Base32 Crockford function in one of the latest luca releases.
+We followed up on this issue. We were able to determine that history retrieval via serial
+number was no longer possible due to the incorrect renaming of the Base32 Crockford function
+in one of the latest luca releases.
 ```
 
 Aus der Commit-Historie war ein solches `"...incorrect renaming of the Base32 Crockford function..."` nicht ersichtlich (zwischen dem Initial Release und diesem Patch lagen mittlerweile **10 Version-Patches**, davon 1 Minor Release Update, über eine Zeit von einem Monat Codeanpassungen). Der fehlerhafte Patch, der dieses Problem verursacht haben soll, ist vor dem Initial-Commit der Version `v1.0.0` für mich bis heute nicht erkennbar. Aus meiner persönlichen Sicht heißt dies: Es fehlt nicht nur an Tests für Patch-Deployments, sondern es finden auch **keine hinreichenden funktionalen Tests für Kernfuntionalitäten des Systems statt**. Das Kommunikationsverhalten bzw. "Acknowledgment" des Herstellers zu gemeldeten Problemen erscheint im Vergleich zu anderen Vendoren höchst fragwürdig. Ich selbst würde sogar soweit gehen zu sagen, dass das **Herstellerverhalten nicht nahelegt, dass man an der Verantwortung geachsen ist, die sich aus der Gestaltung des Luca-Systems (bezogen auf die Systemteilnehmer) ergibt**.
@@ -484,7 +489,7 @@ Wie erläutert, existiert die bereits beschriebene Funktionalität zum entschlü
 - für Kontaktdaten von Location-Gästen mit App: [Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/decryption.js#L124)
 - für Kontaktdaten von Location-Gästen mit Schlüsselanhängern: [Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/decryption.js#L58)
 
-**In keinem der beiden Code-Pfade findet die in "Schritt 2a" beschriebene (rudimentäre) Validierung der JavaScript Objekte die sich aus beliebig wählbaren Kontakdaten ergeben noch statt. Für Schlüsselanhänger macht man sich nicht einmal mehr die mühe, vor dem JSON-Parsing der entschlüsselten Daten zu prüfen, ob es sich beim Input um einen UTF-8 String handelt (ob der vermeintliche JSON-String allerdings UTF-8 kodiert ist - oder nicht - spielt ohnehin keine Rolle, denn es gibt keinen weiteren Input-Filter, den man durch Verwendung einer anderen Kodierung umgehen müsste).**
+**In keinem der beiden Code-Pfade findet die in "Schritt 2a" beschriebene (rudimentäre) Validierung der JavaScript Objekte die sich aus beliebig wählbaren Kontakdaten ergeben noch statt.**
 
 Die beiden vorgenannten Code-Pfade werden in der Funktion `decryptTrace` zusammengefasst, welche neben anderen Daten (nicht im Scope dieses Dokumentes), auch das JavaScript Objekt - welches aus den entschlüsselten Kontaktdaten entsteht - als `userData` zurück gibt ([Code Link](https://gitlab.com/lucaapp/web/-/blob/76c4978425133286a6a72f02643e0c2207d04f46/services/health-department/src/utils/cryptoOperations.js#L92)).
 
@@ -541,8 +546,8 @@ Auch in diesem Kontext von React-Templates existieren Sprach-Konstrukte, die bei
 Als wäre der Weg der Daten bis zu den Ausgabe-Kontexten nicht schon verworren genug, ist man hier offensichtlich bemüht die Dinge noch komplizierter, **und damit noch Fehler-anfälliger**, zu machen. Ich beschreibe dies nur noch in Stichpunkten:
 
 - Die React Komponente `Header.react.js` übernimmt das `traces` Argument ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L19))
-- Die Komponente wird unter dem Namen `Header` exportiert ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L83)) und in die (bereits vorgestellte) Komponente [ContactPersonView.react.js (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92) eingebettet. Die `Header` Komponente übernimmt dabei das als Argument namens `traces` ein Array, welches **für jeden Eintrag** eines der ausführlich behandelten `userData` Objekte enthält (welche nie validiert wurden).  
-  Erläuterungen über den Weg der [hier (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L57) erstellten `traces` (jeweils mit ungefilterten `userData` Objekten), zum `selectedTraces` Array welches [hier (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92) verwendet wird, erspare ich mir.  
+- Die Komponente wird unter dem Namen `Header` exportiert ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L83)) und in die (bereits vorgestellte) Komponente [ContactPersonView.react.js (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92) eingebettet. Die `Header` Komponente übernimmt dabei das als Argument `traces` ein Array namens `selectedTraces`, welches **für jeden Eintrag** eines der `userData` Objekte enthält (welche nicht validiert Eingabedaten enthalten).  
+  Erläuterungen über den Weg der [hier)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L57) erstellten `traces` (jeweils mit ungefilterten `userData` Objekten), zum `selectedTraces` Array welches [hier (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92) verwendet wird, erspare ich mir.  
   Grund: Die "Filterung" hat nur funktionalen Charakter (Ausschluss von Kontaktdaten-Einträgen aus der Gästeliste, die eine ausgewählte minimal-Kontaktzeit unterschreiten. "Per default" werden hier zunächst alle Kontakte gelistet).
 - Die React Komponente `Header.react.js` bettet weitere React Komponenten ein, welche verschiedene Ausgabe-Konexte bedienen sollen. **Diese Sub-Komponenten haben keine Relevanz in der Darstellung des User Interfaces!** Der relevante Anteil für die (dynamische) Darstellung im User Interface, ist hier lediglich ein Download-Button ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L76))
 - Das eigentliche Data-Processing(und das **je Ausgabe-Kontext** benötigte Output-Encoding, wird auf weitere (zweckentfremdete) User Interface Komponenten deligiert, an die das `traces` Array mit `userData` Objekten weitergereicht wird, im einzelnen:
@@ -553,7 +558,7 @@ Als wäre der Weg der Daten bis zu den Ausgabe-Kontexten nicht schon verworren g
     - die `SormasModal` Komponente erweitert jeden Eintrag `traces` Array um eine `uuid` property und speichert das neue Array in `newTraces`. Das ungefilterte `userData` Objekt wird dabei für jeden Eintrag (mit allen weiteren Properties eines `trace`) übernommen ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/SormasModal/SormasModal.react.js#L49)).
     - Unmittelbar im Anschluss wird das `newTraces` array (mit den ungefilterten `userData` Objekten) an den `sormasClient.personPush()` Funktion weitergegeben ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/SormasModal/SormasModal.react.js#L52)). Die Funktion ist hier implementiert und nimmt für die Properties der `userData` **noch immer keine Input Validierung vor**: [Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/network/sormas.js#L35)
 
-## 3.5 Zwischenfazit (Gefahr für SORMAS)
+## 3.5 Zwischenfazit
 
 Bisher wurde ausschließlich die `v1.1.11` des Luca "Health Department Frontends" betrachtet. Die Betrachtung dieser Version wurde auf einen sehr konkreten Fokus reduziert, nämlich die Frage:
 
@@ -572,40 +577,538 @@ Trotz dieses engen Betrachtungsfokus, zeigen sich schnell eklatante Mängel im g
 - Ein Blick in den Code von System-Komponenten, welche außerhalb des hier gewählten Betrachtungsfokus liegen, zeigt keine gesteigerte Qualität. Man muss daher annehmen, dass das gesamte System mit Implementierungsmängeln behaftet ist, welche unmittelbar in Sicherheitsrisiken münden.
 - Statt den sicheren Umgang mit Daten von hochgradig-sensitivem Character in gut definierten, sauber ausgestalten und nachvollziehbar implementierten Prozessen abzubilden, vertraut man diese Daten externen Drittanbieter-Bibliotheken an (Beispiele folgen). Hierbei wird die Kontrolle über die **robuste** Datenverarbeitung nicht nur vollständig abgegeben, es sind darüberhinaus keinerlei Tests erkennbar, die sicherstellen könnten, dass die ausgelagerten Funktionalitäten auch die erwarteten Ergebnisse liefern. Dies wiegt umso schwerer, wenn komplexe Drittanbieter-Libraries eingebunden werden, um am Ende nur rudimentäre Teilfunktionalitäten zu nutzen, welche sich innerhalb des Luca-Codes mit geringen Aufwand kontrolliert abbilden liesen. Das fehlende Verständnis für das Paradigma "Security-By-Design" wird hier überdeutlich.
 
-Bevor ich mich den für "CSV Injection" relevanten Output-Kontexten zuwende, möchte ich den Blick nochmals auf den Kontext der "SORMAS Rest API" wenden.
+## 3.6 Zusammenfassung: Ungefilterter Input (`userData`), auch in der aktuellesten Luca-Version `v1.1.16`
 
-## 3.6 Output-Kontext SORMAS Rest-API
+Am Ende des Abschnitts 3.4 wurden einige Output-Kontexte für ungefilterte Kontaktdaten angesprochen.
 
-t.b.d
+Dieser Abschnitt soll einige dieser Output Kontexte betrachten, denn hier müsste der Input passend zum jeweiligen Kontext kodiert werden. Der Input sollte dabei bereits validiert sein. Zunächst soll resümiert werden, von welchem Input hier die Rede ist:
 
-Die bereits benannnte Funktion `personsPush` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/network/sormas.js#L35)) ist für die wie folgt implementiert:
+- Der Input wird als JavaScript Array namens `traces` bereitgestellt. Es entspricht der "Gästeliste" einer Location (**alle** Luca-Nutzer die überschneiden mit der Person die seitens Gesundheitsamt "getracet" anwesend waren)
+- Jeder Eintrag (`trace`) in diesem Array, ist ein JavaScript Object welches weitere eingebettete Objekte mit den "Check-In-Daten" weitere Luca-Nutzer enthält
+- Eines der eingebetteten Objekt zu jedem trace ist das (bereits umfassend beschriebene) `userData` Objekt, welches aufgrund der fehlenden Eingabevalidierung durch beliebig gestaltet werden kann
+
+Eine Pseudo-Code Darstellung des `traces` Array:
 
 ```
-  const personsPush = (traces, currentTime = Date.now()) =>
-    fetch(`${SORMAS_REST_API}/persons/push`, {
-      headers,
-      method: 'POST',
-      body: JSON.stringify(
-        traces.map(trace => ({
-          uuid: trace.uuid,
-          firstName: trace.userData.fn,
-          lastName: trace.userData.ln,
-          emailAddress: trace.userData.e,
-          phone: trace.userData.pn,
-          address: {
-            uuid: trace.uuid,
-            city: trace.userData.c,
-            changeDate: currentTime,
-            creationDate: currentTime,
-            street: trace.userData.st,
-            postalCode: trace.userData.pc,
-            houseNumber: trace.userData.hn,
-            addressType: 'HOME',
-          },
-        }))
-      ),
-    });
+// traces array (handled as "React" Component state):
+[
+  {
+    "traceID": ...,
+    "checkin": ...,
+    "checkout": ...,
+    // arbitraryUserData:
+    //    base64 string with length up to 1024 characters, no content restriction, if:
+    //      - proper base64
+    //      - properbly encrypted (up to 768 arbitrary bytes)
+    //      - if decryption results in proper JSON string (UTF-8 encoded)
+    "userData": JSON.parse(AES128_CTR_decrypt(Base64_decode(arbitraryUserData))),
+    "additionalData": ...,
+    "isInvalid": ...
+  },
+  {
+    ...
+    "userData": JSON.parse(AES128_CTR_decrypt(Base64_decode(arbitraryUserData2))),
+    ...
+  },
+  {
+    ...
+    "userData": JSON.parse(AES128_CTR_decrypt(Base64_decode(arbitraryUserData3))),
+    ...
+  },
+  ...
+]
 ```
+
+Erwähnt sei, dass die `additionalData` Objekte ebenfalls ohne weitere Filterung "auflaufen" und (aufgrund ihrer Handhabung) ein noch höheres Potential für Injection-Angriffe bieten.
+
+Die erwartete Objekt-Struktur für `userData` Objekte wurde unter "Abschnitt 3.4 - Schritt 1" dargestellt, kann aber vernachlässigt werden, da sie bisher nicht mittels Eingabe-Validierung durchgesetzt wurde.
+
+Ein `userData` Objekt kann also beliebig gestaltet sein, solange die UTF-8 kodierte JSON-Repräsentation des Objektes, die Größe von 768 Bytes nicht überschreitet (nach Verschlüsselung noch immer 768 Bytes, nach Base64 Kodierung 1024 Bytes - wie vom Schema der REST API erzwungen).
+
+Im weiteren Verlauf sollen nur noch `userData` Objekte isoliert betrachtet werden (festgelegter Fokus). Der enge Betrachtungsfokus ist der "ungüstig komlexen" Code-Struktur geschuldet, ich kann aber versichern, dass an vielen Stellen im Code ähnliche Mängel auszumachen sind. Diese herauszuarbeiten "is up to the reader".
+
+Bisher wurde nur auf Luca-Code der Version `v1.1.11` verwiesen. Zum Zeitpunkt der Erstellung dieses Dokumentes, ist allerdings die Version `v1.1.16` im Produktionsbetrieb. Version `v1.1.16` (Release vom 02. Juni 2021) beinhaltet zusätzlich alle Patches zur öffentlich diskutierten "CSV Injection" Schwachstelle.
+
+**ABER: Alle bisher gemachten Feststellungen zur fehlenden Eingabe Validierung, treffen analog auf die aktuellste Version des Luca-Systems zu.**
+
+Auch in Version `v1.1.16` werden `userData` nach der Entschlüsselung nicht validiert. Siehe hierzu:
+
+1. [Code Link v1.1.16 - Entschlüsselung/JSON-Parsing für App Nutzer](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/utils/decryption.js#L121)
+2. [Code Link v1.1.16 - Entschlüsselung/JSON-Parsing für Schlüsselanhänger](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/utils/decryption.js#L46)).
+
+Nach der Entschlüsselung werden die Daten, **noch immer ungefiltert**, durch die React Komponente `ContactPersonView` ([Code Link v1.1.16](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L57)) an die React Komponente `Headers` übergeben ([Code Link v1.1.16](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92)). Dort dienen die Daten als "Single-Source-of-Thruth" für jedeweitere Verarbeitungen, vollkommen unabhängig vom Ausgabe-Kontext.
+
+## 3.6.1 Output-Kontext CSV-Export
+
+Vorbemerkung: dieser Abschnitt ist ausfühlich gehalten. Der CSV-Export dient hier als **exemplarisches Beispiel**. Mittels des Beispieles solll analytisch dargelegt werden, dass das Luca-System (Implementierungs-bedingt) externe Eingabedaten **nicht** so filtern kann, dass Angriffe über Nutzereingaben verhindert werden. Obwohl der Abschnitt konkret den Angriffsvekor "CSV Injection" im Kontext der "CSV Export" Funktionalität betrachtet, finden sich die gleichen Fehler in zahlreichen anderen Ausgabe-Kontexten, aber auch in anderen Luca-Systemkomponenten, wieder. Eine Analyse der Zusammenhänge in "voller Tiefe" erfolgt allerdings nur für diesen Abschnitt.
+
+## 3.6.1.1 Vorbetrachtung Output-Kontext CSV-Export: **Warum Luca bei der Filterung von Nutzerdaten versagen muss** (Definition der Anforderungen an Ein-/asugabefilterung in `v1.1.11`)
+
+Wie am Ende des Abschnittes 3.4 dargestellt, wird das `traces` Array mit den nicht validierten `userData` Objeketen von der React Komponente `Header` and die React Komponente `CSVDownload` weitergegeben: [Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L50)
+
+Die Komponente `CSVDownload` wird in `ContactPersonView.helper.js` implementiert: [Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L313)
+
+```
+export const CSVDownload = ({ traces, location }) => {
+  const intl = useIntl();
+  return (
+    <CSVLink
+      data={getCSVDownloadDataFromTraces(traces, location, intl)}
+      filename={`${location.name}_luca.csv`}
+    >
+      Download CSV
+    </CSVLink>
+  );
+};
+```
+
+Die erstellung des CSV-Outputs wird an eine weitere React Komponente `CSVLink` delegiert.
+
+**Die `CSVLink` Komponente gehört aber nicht zum Luca-Code, sondern wird von der externe React-Library `react-csv` bereitgestellt. Das Luca-System kann hier also gar kein CSV-bezogenes Output-Encoding mehr vornehmen. Die `CSVLink` Komponente, der externe `react-csv` Library, stellt dabei die Ausgabedaten direkt an den Nutzer bereit (die CSV Datei, welche im Gesundheitsamt heruntergeladen wird) und übernimmt damit die Aufgabe des Output-Encodings und - Escapings. Darüber hinaus, hat diese Library nun die alleinige Kontrolle über den Output, welcher dem Gesundheitsamt bereitgestellt wird.**
+
+**Ob diese Library erwartungsgemäß funktioniert, kann nur durch Tests beantwortet werden. Der Luca-Quellcode lässt aber keine diesbezüglichen Tests erkennen. Damit werden Datenschutz- und Sicherheitskritische Funtionalitäten ungetestet nach "Extern" ausgelagert.**
+
+Ohne Funktions- und Sicherheitstests könnte man die Verlässlichkeit solcher externen Libraries eventuell noch grob abschätzen (wenn man denn so etwas wie "Dependency Management" betreibt und dabei "Security" nicht aus den Augen verliert). VErsuch man dies, lässt sich zur `react-csv` Library folgendes feststellen:
+
+- Luca in der Version `v1.1.11` verwendet `react-csv 2.0.3` [(Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/package.json#L36)
+- Luca in der aktuellsten Version `v1.1.16` verwendet ebenfalls `react-csv 2.0.3` [(Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/package.json#L38)
+- `react-csv` hat seit 01. April 2020 keine Updates mehr erfahren, `v2.0.3` war die letzte veröffentlichte Version ([Link](https://github.com/react-csv/react-csv/releases/tag/v2.0.3))
+- Man könnte annehmen, die Library wäre so weit gereift, dass keine Updates mehr nötig sind, aber:
+- Es warten **über 30 Pull Requests**, welche überwiegend **weitere externe Abhängikeiten auf den aktuellen Release-Stand bringen sollen** ([Link](https://github.com/react-csv/react-csv/pulls)). Die "Dependency Hell" kann hier nicht als Entschuldigung dienen. Erneut gibt man grob fahrlässig Verantwortung und Sicherheit auf.
+- `react-csv` pflegt **über 70 offene issues** - ganz allein, ohne Betrachtung der weiteren Dependencies-Updates die in Pull Requests auf Umsetzung warten ([Link](https://github.com/react-csv/react-csv/issues)). Unter anderem Pflegt man hier auch das Thema "CSV Injection" seit über 2 Jahren als offenen Issue ([Link](https://github.com/react-csv/react-csv/issues/156)).
+
+**Halten wir fest:**
+
+---
+
+Output-Encoding für CSV kann von Luca gar nicht vorgenommen werden, da der Output außehalb des Luca-Codes erstellt wird.
+
+Die fehlende Input Validation nachzuholen, wäre an dieser Stelle noch denkbar, aber deplaziert, denn: Man müsste die exakt selbe Eingabe-Validierung (der `userData` Objekte) für jeden Ausgabe-Kontext redundant implementieren. Außerdem, müsste jeder bereits von den Daten durchlaufene Kontext (Kontextwechsel zu JavaScript, Kontextwechesel zu React ...) trotzdem auf diese Eingabe-Validierung verzichten.
+
+Die Luca-Entwickler haben zwar bewiesen, dass sie durchaus gewillt sind mit redundantem Code zu arbeiten, aber auch, dass dieser dann unterschiedlich schlecht funktioniert.
+
+---
+
+Wo findet sich nun die Umsetzung der OWASP Empfehlungen zu "CSV Injection" statt (welche zeitgleich zum Update auf Luca `v1.1.11` als vorhanden beworben wurde)?
+
+Nun, die Daten die an externe `CSVLink` Komponente weiter gegeben werden, durchlaufen (wie im Code Auszug dargestellt) zunächst die Funktion `getCSVDownloadDataFromTraces` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L317)).
+
+Innerhalb der `getCSVDownloadDataFromTraces` durchläuft jedes `userData` Objekt durch die Funktion `filterTraceData` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L272)):
+
+```
+  ...traces
+    .map(({ userData, isDynamicDevice, ...other }) => ({
+      ...other,
+      userData: filterTraceData(userData, isDynamicDevice),
+    }))
+```
+
+Ich hoffe es ist deutlich geworden, dass es sich hier nicht mehr um getrennte Eingabe-Validierung und Kontext-basiertes Ausgabe-Encoding handeln kann. Dieser "Filter" kann bestenfalls noch als "Sanitizer" implementiert sein. Ein solcher Ansatz birgt allerdings Risiken und Nachteile, vor allem aber ist es weitaus schwierigiger, mit einem "Sanitizer" zu einer funktionierenden Umsetzung zu kommen und diese geeignet zu testen. Vor der tatsächlichen Betrachtung der `filterTraceData` Funktion, möchte ich die Ansätze "Input Validierung + Output Encoding" und "Sanitization" kurz gegenüberstellen.
+
+Ich nutzer dafür einen Bildhaften vergleich:
+
+---
+
+_Stellen sie sich die Wasserversorgung in einem Haus vor. Es gibt, verteilt über die Etagen, mehrerer Wasserhähne (Output-Kontext). Die Wasserhähne sollen, je nach Bedarf, Wasser in der gewünschten Temperatur liefern. Die Wunschtemperatur wird über die jeweiligen Mischbatterien der Wasserhähne geregelt (kontextbasiertes Output-Encoding)._
+
+_Damit die Wasserhähne nicht nur kaltes Wasser liefern, benötigen sie jeweils Warmwasser, mit einer definierten Minimaltemperatur (valider Input). Die Bereitstellung des Warmwassers wird, für das gesamte Haus, durch einen Warmwasserboiler gewährleistet. Dieser wird zentral am Kaltwasseranschluss platziert. Der Boiler nimmt Kaltwasser auf (unvalidierter Input) und stellt sicher, dass dieses - vor weiterleitung - immer auf die gewünschte Minimaltemperatur gebaracht wird (Input Validierung)._
+
+_Die Analogie für "Sanitization" würde so aussehen:_
+
+_Es kommen nur noch Wasserhähne ohne Mischbatterie zum Einsatz (kein Output-Encoding). An jedem Wasserhahn kommt Kaltwasser, mit schwankender Temperatur an (unvalidierter Input). Um trotzdem an jedem Hahn die geünschte Wassertemperatur abzugreifen, muss jeweils ein Durchlauferhitzer angebracht werden (Sanitizer). Die Wunschtemperatur bestimmt jetzt der Durchlauferhitzer (Sanitization), dieser muss aber regelmäßig nachjustiert werden, da das zulaufende Kaltwasser in der Temperatur schwankt (unvalidierter Input). Wird vergessen, an einem Hahn einen Durchlauferhitzer zu platzieren, liefert der Hahn nur Kaltwasser mit schwankender Temperatur (unkontrollierter Output). Ist einer der Durchlauferhitzer fehlerhaft (Fehler im Sanitizer), merken Sie dies erst, wenn sie sich am zu heißen Wasser die Hände verbrennen. Haben Sie nicht den gesammten Wasserkreislauf des Hauses im Blick und es werden versehentlich zwei Durchlauferhitzer in Folge durchlaufen ("double encoding"), ist das Wasser nicht zu kalt, aber sie können sich erneut die Hände verbrennen._
+
+---
+
+Zusammengefasst: "Sanitization" ist ein "sub-optimaler" Ansatz mit vielen Nachteilen (Wartungsintensiv, Testintensiv, muss an allen wichtigen Stellen im Datenfluss unterschiedlich Implementiert werde - je nach Kontext, ist Fehleranfällig, lässt sich häufig Umgehen).
+
+Zurück zur `filterTraceData` Funktion.
+
+Wie erläutert, kann dieser "Filter" - aufgrund seiner logischen Positionierung im "Datenfluss" - nur noch als Sanitizer angelegt sein (als "Durchlauferhitzer").
+Der Filter muss nicht nur "nachholen", was bisher im Bereich Input Validierung versäumt wurde, der Filter muss zusätzlich das Encoding/-Escaping für seinen Ausgabe-Kontext sicherstellen.
+
+Zur Erinnerung: **Der Ausgabe-Kontext ist NICHT "CSV (Character-separated values)". Der Ausgabe-Kontext der `filterTraceData` Funktion sind Daten, die an die React Komponente `CSVLink` übergeben werden (als neuer Input).**
+
+Demgegnüber steht die Behauptung des Luca-Herstellers, dass "... beim Entschlüsseln der Daten die OWASP Empfehlungen zu CSV Injections ..." umgesetzt werden (vergl. Abschnitt 3.3). Das keine Filterung beim "Entschlüsseln der Daten" vorgenommen wird, muss nicht wiederholt werden. Wichtig für die Implementierung `filterTraceData` ist, dass die Aufgabe darin besteht die OWASP-Empfehlungen zu "CSV Injection" umzusetzen.
+
+Auszug aus den OWASP Empfehlungen ([Link](https://owasp.org/www-community/attacks/CSV_Injection))
+
+```
+When a spreadsheet program such as Microsoft Excel or LibreOffice Calc is used to open a CSV, any
+cells starting with = will be interpreted by the software as a formula. Maliciously crafted
+formulas can be used for three key attacks:
+
+    - Hijacking the user’s computer by exploiting vulnerabilities in the spreadsheet software,
+    such as CVE-2014-3524.
+    - Hijacking the user’s computer by exploiting the user’s tendency to ignore security warnings
+    in spreadsheets that they downloaded from their own website.
+    - Exfiltrating contents from the spreadsheet, or other open spreadsheets.
+
+This attack is difficult to mitigate, and explicitly disallowed from quite a few bug bounty programs.
+To remediate it, ensure that no cells begin with any of the following characters:
+
+    - Equals to (=)
+    - Plus (+)
+    - Minus (-)
+    - At (@)
+    - Tab (0x09)
+    - Carriage return (0x0D)
+
+...
+
+Alternatively, prepend each cell field with a single quote, so that their content will be read as
+text by the spreadsheet editor.
+
+```
+
+### Kurzanalyse der OWASP Empfehlung "CSV Injection", als Anforderungsdefinition für `filterTraceData`:
+
+---
+
+Znuächst legt die Empfehlung den Ausgabe-Kontext fest, in dem sie gilt: **"a spreadsheet program"** (ein Tabellenkalkulationstabellenkalkulationsprogramm)
+
+Weiter wird festgelegt, welche Teile der Input-Daten zu Filtern sind: "... cells starting with ...", also CSV-Daten welche von der Tabellenkalkulation als **Zellen** interpretiert werden.
+
+Die ungefilterter Ausgabe müsste also zunächst in Zellen zerlegt werden, um überhaupt eine Filterung ansetzen zu können. Diese Zellenzerlegung, müsste in der Logik folgen, welche die Tabellenkalkulation zur Zellenzerlegung ansetzt.
+
+CSV ist ein nicht sauber standardisiertes Format, welches trotzdem breite Anwendung findet. Die spiegelt sich wieder, wenn man zunächst versucht abzuleiten, wie eine Zelle überhaupt definiert ist.
+Ich habe CSV zuvor bewusst als **"Character-separated values"** ausformuliert, weitaus gebräuchlicher ist allerdings die Bezeichnung **"Comma-separated values"**. In der Regel wir ein `,` (ASCII `0x2C`) als Zellentrenner verwendet. Für alle gängigen Tabellenkalkulationen ist diese Interpretation eines Zellentrenners in CSV-Eingabedaten auch der "Default". Dennoch kann grundsätzlich jedes ASCII-Zeichen als Zellentrenner festgelegt werden und wäre dann im Zelleninhalt so zu escapen, dass es **nicht als Zellentrenner interpretiert wird**.
+
+_Häufig wird auch `;` (ASCII `0x3B`, bspw. für den SORMAS Export) oder ein `tab` (ASCII `0x09`) als Zellentrenner verwendet._
+
+RFC4180 ([Link](https://datatracker.ietf.org/doc/html/rfc4180)) versucht die CSV-Variante formal zu beschreiben, welcher die meisten Implementierungen folgen, macht dabei allerdings deutlich, dass es keine einheitliche Spezifikation gibt. Da auch Tabellenkalkulationen ("per Default") diese Interpretation anlegen, soll diese als Betrachtungsgrundlage dienen. Zunächst heißt das, dass **ein Zellentrenner immer ein Komma ist.**
+
+Weiter definiert der RFC4180 die CSV-Syntax wie folgt:
+
+```
+file = [header CRLF] record *(CRLF record) [CRLF]
+header = name *(COMMA name)
+record = field *(COMMA field)
+name = field
+field = (escaped / non-escaped)
+escaped = DQUOTE *(TEXTDATA / COMMA / CR / LF / 2DQUOTE) DQUOTE
+non-escaped = *TEXTDATA
+COMMA = %x2C
+CR = %x0D
+DQUOTE =  %x22
+LF = %x0A
+CRLF = CR LF
+TEXTDATA =  %x20-21 / %x23-2B / %x2D-7E
+```
+
+Was ist hier relevant zur Umsetzung der OWASP-Empfehlungen:
+
+1. **Zellen** sind hier als `field` definiert und der **Zelleninhalt** kann in zwei Varianten vorliegen: `escaped` oder `non-escaped`
+2. Für `non-ecaped` Zellen sind als Inhalt nur die **druckbaren** ASCII Zeichen `0x20-0x7E` zulässig. Die Zeichen `"` (`0x22`) und `,` (`0x2C`) sind **explizit verboten**
+3. Für `escaped` Zellen sind die Inhalte mit `"` (`0x22`) zu umschließen. Die `"` gehören selbst nicht zum Zelleninhalt, da sie dem escaping dienen. Als Zelleninhalt wären dann auch die Zeichen `,` (`0x2C`), `LF` (`0x0A`) un `CR` (`0x0D`) erlaubt. Die Verwendung des Zeichens `"` (`0x22`) ist allerdings auch hier nur als Doppelfolge `""` erlaubt.
+4. Eine **Tabellenzeile** (`record` / `header`) besteht aus einer einzelnen **Zelle** oder einer **Reihe von Zellen** die durch ein `,` (`0x2C`) als Zellentrenner abgegrenzt werden.
+5. Enthält die Tabelle mehr als eine Zeilen, werden die \*\*Tabelleinzeilen durch `CRLF` (`[0x0D, 0x0A]`) abgegrenzt.
+6. Die Tabellenzeilen `header` und `record` unterscheiden sich nur formal, nicht syntaktisch.
+
+Die OWASP Empfehlungen beziehen sich auf das **erste Zeichen einer Zelle** und machen dabei konkrete Vorgaben, welche Zeichen zu unterdrücken oder durch Voranstellen eine `'` (`0x27`) zu escapen sind: `[=+-@]`, `0x0D` und `0x0A`.
+
+Die Umsetzung der OWASP Empfehlung für beliebigen Input bis zur Konvertierung einer RFC4180 konformen **CSV-Zelle**, könnte etwa so aussehen (Pseudo-Code, ohne Error-Handling, Length-Checks etc):
+
+```
+// Input validation according to RFC4180
+ByteArray validateCsvCellInputRFC(BytaArray inputCellContent, Bool srict) {
+  ByteArray output = [];
+
+  // printable ASCII, without ',' and '"'
+  ByteArray allowedBytes = [0x20..0x21, 0x23..0x2B, 0x2d..0x7e];
+
+  // encodable/escapable characters DQUOTE, COMMA, LF, CR
+  ByteArray encodableBytes = [0x22, 0x2c, 0x0a, 0x0d];
+
+  for (int i = 0; i < inputCellContent; i++) {
+    Byte textdata = inputCellContent[i];
+    if (allowedBytes.contains(textdata) || encodableBytes.contains(textdata)) {
+      output.append(textdata);
+    } else if (strict) {
+      throw InvalidCsvCellDataException(textdata);
+    }
+
+    // if here, invalid byte gets dropped (not appended to output)
+  }
+
+  return output;
+}
+
+// Output encoding according to RFC4180
+ByteArray encodeCsvCellOutputRFC(BytaArray csvCellContent, Bool escape) {
+  // Input was validated according to RFC4180, thus it could be handled as ASCII
+  String strField = csvCellContent.decode("ASCII");
+
+  // check if characters exist, which require an 'encoded' field according to RFC4180
+  // an encoded field has to be enclosed with '"'
+  Bool requiresEnclosing = strField.containsOneOf(['"', ',', '\n', '\r']));
+
+  // special case: escape DQOUTES '"' to 2DQUOTES '""'
+  strField = strField.split('"').join('""');
+
+  // add enclosing if required
+  if (requiresEnclosing) strField = '"' + strField + '"'
+
+  // return result as ASCII-encoded ByteArray
+  return strField.encode("ASCII")
+}
+
+// Input validation according to OWASP suggestion for "CSV Injection"
+ByteArray validateCsvCellInputOWASP(BytaArray validInputCellContent, Bool srict) {
+  // handover to OWASP-agnostic encoding, if no strict validation is required
+  if (!strict) return validInputCellContent;
+
+  // forbidden, but still escapable during output encoding ([=+-@], 0x0D, 0x0A)
+  ByteArray forbiddenFirstCharForCell = [0x3d, 0x2b, 0x2d, 0x40, 0x0d, 0x0a];
+
+  if (forbiddenFirstCharForCell.contains(validInputCellContent[0])) {
+    throw ForbiddenFirstCellCharException(validInputCellContent[0]);
+  }
+
+  return validInputCellContent;
+}
+
+// Output Encoding according to OWASP suggestion for "CSV Injection"
+ByteArray encodeCsvCellOutputOWASP(BytaArray csvCellContent, Bool escape) {
+  // forbidden, but still escapable during output encoding ([=+-@], 0x0D, 0x0A)
+  ByteArray forbiddenFirstCharForCell = [0x3d, 0x2b, 0x2d, 0x40, 0x0d, 0x0a];
+
+  // if cell-content starts with forbidden character, as defined by OWASP
+  if (forbiddenFirstCharForCell.contains(csvCellContent[0])) {
+    // if escaping is enabled, prefix with "'"
+    if (escape) return ByteArray.concat([0x27], csvCellContent);
+
+    // if escaping is disabled, drop forbidden first character
+    return csvCellContent.trim(1, csvCellContent.Length); // drop first character
+  }
+
+  return csvCellContent; // no further encoding required
+}
+
+// filters unsanitized Input to RFC4180 compliant CSV-Field with "CSV Injection" prevention according to OWASP
+ByteArray filterCellInputForCSV(ByteArray rawCellInput, Bool strict, Bool escapeOWASP) {
+  // Input validation according to RFC4180
+  ByteArray validCsvCellContent = validateCsvCellInputRFC(rawCellInput, strict);
+
+  // Input validation according to OWASP suggestion for "CSV Injection"
+  ByteArray nonEncodedCsvCellContent = validateCsvCellInputOWASP(validCsvCellContent, strict);
+
+  // Encode Output according to OWASP (by escaping forbidden characters or dropping them)
+  ByteArray encodedCellContentOWASP = encodeCsvCellOutputOWASP(validCsvCellContent, escapeOWASP); // escape forbidden characters
+
+  // Encoding Output according to RFC4180
+  return encodeCsvCellOutputRFC(validCsvCellContent);
+}
+
+```
+
+Der Pseudo-Code zur Ein- und Ausgabefilterung von CSV-Zellen, soll herausstellen, warum die Luca-Implementierung in `filterTraceData` nicht effektiv arbeiten kann (auch wenn dei konkrete Implementierung noch nicht betrachtet wurde).
+
+Die Pseudo-Code verhindert CSV-Injection auf **"Zellen-Ebene"**. Damit die OWASP-Filterung wie vorgeshen erfolgen kann, müssen die Eingangsdaten als **Zellinhalte** vorliegen, denn nur hier lassen sich die Vorgaben anwenden. Die `filterTraceData` Funktion aus dem Luca Code verarbeitet allerdings (beliebige) JavaScript Objekte (`userData`), also nicht Zellinhalte.  
+Die `filterTraceData` Funktion könnte bestenfalls OWASP-konforme **Zelleninhalte** ausgeben, die Weiterverarbeitung wird allerdings von der `CSVLink` Komponente der `react-csv` Library übernommen. Das wiederum heißt: Die `CSVLink` Komponente, verarbeitet die Eingabedaten der `filterTrace` Funktion zunächst zu CSV-Zellen und letztendlich zu CSV. Dies ist in sofern problematisch, als das die `filterTraceData` Funktion nun gar nicht mehr zwischen Eingabedaten die als CSV-Zelleninhalte fungieren und der erzeugten CSV-Ausgabe ansetzen kann. Der Pseudo-Code stellt das Problem ebenfalls dar:
+
+Die Funktionen `validateCsvCellInputOWASP` und `encodeCsvCellOutputOWASP` setzen die OWASP-Filterung um. Allerdings **muss diese Filterung zwischen** der RFC4180-konformen **Eingabeverarbeitung** (`validateCsvCellInputRFC`) und der RFC4180-konformen **Ausgabeverarbeitung** (`encodeCsvCellOutputRFC`) erfolgen. Nur so kann überhaupt sichergestellt werden, dass die Inhalte von CSV-Zellen gefiltert werden, auf die sich die OWASP-Empfehlungen beziehen. Analog dazu, müsste die `filterTraceData` Funktion aus dem Luca-Code innerhalb der `react-csv` Library arbeiten, nämlich da wo valide CSV-**Zellen**inhalte vorliegen, aber bevor diese Inhalte zu CSV-Dateien weiterverarbeitet werden. Da die `filterTraceData` Funktion aber logisch **vor der CSV-Verarbeitung** arbeitet, muss sie zusätzliche Anforderungen erfüllen, um die OWASP-Empfelungen umzusetzen:
+
+- Validierung der Eingabedaten `userData` (Der Sicherheits-Effekt ist beschränkt, da eine Verarbeitung der unvalidierten Eingaben bereits in anderen Kontexten erfolgt ist. Die Eingabe-Validierung an dieser Stelle erzielt keinen Nutzen für andere Ausgabe-Kontexte - wie bspw. SORMAS Rest Schnittstelle - mehr und müsste dort erneut erfolgen).
+- Genaue Festlegung, welche der Eingabedaten (`userData`) in der Weiterverarbeitung durch die `CSVLink` Komponente der `react-csv` Library, als **Zelleninhalte** angesehen werden. Die genaue Art und Weise der Weiterverarbeitung durch `react-csv` (und weiterer Libraries welche von `react-csv` eingebunden werden) muss dabei so analysiert werden, dass für **alle möglichen Eingabedaten** feststeht, wo und wie diese als Zellen interpretiert werden (deterministisch).
+- Das Ausgabe-Encoding für CSV-Zelleninhalte (vergleiche Analogie im Pseudo-Code-Beispiel: `encodeCsvCellOutputRFC`) wird nun Anteilig von der Luca Funktion `filterTraceData` und von der internen Funktionalität der `react-csv` Library übernommen. Die dazu muss genau definiert sein. Funktionsanpassungen in `react-csv` müssen zu Funktionsanpassungen in der Luca Funktion `filterTraceData` führen, um sicher zu stellen, dass diese Schnittstelle klar definiert bleibt. So muss zum Beispiel klar sein, welche der beiden Komponenten das Encoding/Escaping der CSV-Zellen übernimmt.
+- Nach Anwendung der Filterfunktionalität bezüglich der OWASP Empfehlungen, muss die `filtertraceData` Funktion aus dem Luca-code zusätzlich sicherstellen, dass es durch die `react-csv` Library nicht zu Veränderungen an den Eingangsdaten kommt, die die Filter wieder unwirksam machen oder zu funktionalen Problemen führen (z.B. Double-Encoding).
+
+Zusammengefasst ergeben sich Anforderungen an die `filterTraceData` Funktion, die nur erfüllt werden können, wenn die Weiterverarbeitung der Daten, bis zum letztendlichen Export als CSV-Datei, vollständig vom Luca-Code kontrolliert wird. Mit der Verwendung einer externen Library (`react-csv`) kann dies nicht sichergestellt werden, noch kann ein Filter gegen "CSV Injection" an einer Stelle platziert werden, an der dieser Wirkung entfaltet.
+
+---
+
+## 3.6.1.2 Output-Kontext CSV-Export: Umsetzung der Filterung für "CSV Injections" in `filterTraceData` (`v1.1.11`)
+
+Die ursprüngliche `filterTraceData` Funktion wurde [hier (Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/utils/sanitizer.js#L32) implementiert:
+
+```
+import { pick } from 'lodash';
+import {
+  assertStringOrNumericValues,
+  escapeProblematicCharacters,
+} from './typeAssertions';
+
+const staticDeviceDataPropertyNames = [ 'fn', 'ln', 'pn', 'e', 'st', 'hn', 'pc', 'c', 'vs', 'v', ];
+
+const dynamicDevicePropertyNames = ['fn', 'ln', 'pn', 'e', 'st', 'hn', 'pc', 'c', 'v', ];
+
+export function filterTraceData(userData, isDynamicDevice) {
+  const picked = escapeProblematicCharacters(
+    pick(
+      userData,
+      isDynamicDevice
+        ? dynamicDevicePropertyNames
+        : staticDeviceDataPropertyNames
+    )
+  );
+  assertStringOrNumericValues(picked);
+  return picked;
+}
+
+```
+
+Zunächst ruft die `filterTraceData` Funktion eine weitere Funktion namens `escapeProblematicCharacters`.
+Die Funktion `escapeProblematicCharacters` erhält allerdings nicht mehr das vollständige `userData` Objekt, sondern nur noch eine Kopie des Objektes, welche nur noch die eigentlich vorgesehenen Objekt-Eigenschaften (Properties) enthält, die für "Kontaktdaten" existieren dürfen.
+
+_Vorgesehen sind die Objekt-Keys aus `staticDeviceDataPropertyNames` für Kontaktdaten von Schlüsselanhängern, bzw. aus `dynamicDevicePropertyNames` für Kontaktdaten aus der Luca-App (siehe auch Abschnitt 3.4, Schritt 1)._
+
+Zur Auswahl der zulässigen `userData` Objekteigenschaften wird die Funktion `pick` der Library `loadsh` genutzt. Es wurde bereits ausführlich dargelegt, dass diese (semantische) Eingabe-Filterung viel früher vorzunehmen wäre. Als Beispiel wurden Angriffsszenarien wie "Prototype Pollution" benannt, die bereits vorher bei der Datenverarbeitung im JavaScript-Kontext zum Tragen kommen könnten (auch die `loadsh` Library war von "Prototype Pollution" schon betroffen). Weiter wurde dargelegt, dass andere Kontexte von dieser Filterung nicht mehr profitieren, sofern diese nicht redundant implementiert wird. So würde bswp. für den CSV-Export eine JavaScript-Objekt-Eigenschaft wie `userData.__proto__ = <something bad>` verworfen, im Verarbeitungs-Kontext für die visuelle Darstellung in der Web-Applikation bleibt sie allerdings erhalten. Klar ist auch, dass **die Werte (Values)** von zulässigen Objekteigenschaften noch immer Schaden in der weiteren Verarbeitung anrichten können. Die Funktion `escapeProblematicCharacters` musss diesem Risiko begegnen, denn sie nimmt die weitere Filterung an der Kopie des `userData` Objektes vor.
+
+Die Werte für zulässige Objekteigenschaften, können bisher noch immer beliebig gestaltet sein. Für die Postleitzahl aus den Kontaktdaten, wären beispielsweise folgende Werte zulässig (zur Erinnerung: Nahezu alle Werte werden als String erwartet, wie in Abschnitt 3.4 dargestellt).
+
+```
+// Postleitzahl mit führender 0 als String (angenommene Eingabe)
+userData.pc = "01337"
+
+// Postleitzahl vom Type 'number', führende 0 wird vernachlässigt
+userData.pc = 01337
+
+// Postleitzahl vom Typ 'number' als '-Infinity' um Fehler zu provozieren
+// aus `JSON.parse('{"p": -1e500 , ...}'))`
+userData.pc = -Infinity
+
+// nested Object
+userData.pc = {"__proto__": {"__proto__": {"foo": "bar"}}}
+
+...
+```
+
+Auch können Objekteigenschaften fehlen (das Vorhandensein eines Vornamens wird bswp. vor der Weiterverarbeitung nicht geprüft).
+
+Erst nach der `escapeProblematicCharacters` Funktion, wird auf das neue Objekt die Funktion `assertStringOrNumericValues` angewendet, welche dem Namen nach für korrekt typisierte Object-values sorgen soll (Typ `string` oder `number`).
+
+Auch hier entbehrt die Codeabfolge einer gewissen Logik, sofern man annimmt, dass die `escapeProblematicCharacters` Funktion nur auf die Datentypen angewendet werden soll, die als Properties im `userData` Objekt erwartet werden (also der Typ `string` für alle Kontaktdaten-Attribute und der Tpy `number` für die Property namens `"v"`, welche die Version des Kontaktdatenobjektes speichert).
+
+Die beiden Funktionen `escapeProblematicCharacters` und `assertStringOrNumericValues` sind gesondert im Modul `typeAssertions.js` definiert ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/utils/typeAssertions.js#L3)):
+
+```
+import assert from 'assert';
+
+export function assertStringOrNumericValues(object) {
+  Object.values(object).forEach(value => {
+    assert(typeof value === 'string' || typeof value === 'number');
+  });
+}
+
+export function escapeProblematicCharacters(object) {
+  const target = {};
+  Object.entries(object).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      const valueWithReplacedPlus = value.replace('+', '00');
+      target[key] = valueWithReplacedPlus.replace(/^([=-@\t\r])/, "'$1");
+    } else {
+      target[key] = value;
+    }
+  });
+  return target;
+}
+```
+
+Die Funktion `assertStringOrNumericValues` tut was sie laut ihres Namens tun soll: Sie stellt sicher, dass alle Werte für die Properties des übergebenen Objektes den Typ `string` oder `number` haben.
+
+Die Funktion `escapeProblematicCharacters`, welche innerhalb von `filterTraceData` **vor der** `assertStringOrNumericValues` Funktion aufgerufen wird, muss aber noch aber noch mit Projekt-Properties beliebiger Typen arbeiten. Das macht aus logischer Sicht wenig Sinn, aus Sicherheitssicht kan es sogar hoch problematisch werden. Eine Erläuterung:
+
+Die Funktion `escapeProblematicCharacters` erwartet als Eingabeparameter ein beliebiges JavaScript-Objekt (der Parameter ist sogar als "objekt" benannt, um dies zu verdeutlichen). Die Funktion ist weiter logisch getrennt von der `filterTraceData` Funktion (welche in `sanitizer.js` definiert wurde, `escapeProblematicCharacters` gehört aber zu dem gesonderten Modul `typeAssertions.js`). Ich stelle dies aus genau einem Grund heraus: Die Funktion ist so generisch gestaltet, dass sie Entwickler dazu verleitet, sie auch an anderen Stellen im Code zu verwenden (außerhalb der `filterTraceData` Funktion). Der Funktionsname impliziert dabei, dass für die beliebigen Objekte, welche als Parameter übergeben werden können, "problematische Zeichen" gefiltert werden. Zeichen können aber nur in Objekt-Properties vom Typ String gefiltert werden! Was passiert also mit Properties, welche nicht vom Typ String sind?
+
+Die Codezeile `target[key] = value;` beantwortet diese Frage: Jede Objekt-Property, deren Wert (`value`) nicht die Bedingung `if (typeof value === 'string')` erfüllt, wird ohne weitere Änderungen an das neue Objekt `target` zugewiesen. Der Name der jeweiligen Property (`key`) wird dabei unverändert übernommen.
+
+Im Abschnitt 3.4 (unter Schritt 2), habe ich in einer Randbemerkung den Angriffsvektor "Prototype Pollution" angeschnitten. Dabei wurde festgehalten, dass Objekte die mittels `JSON.parse()` erzeugt werden, nicht allein für "Prototype Pollution" genutzt werden können. Es braucht ein "Sprungbrett" welches die relevanten Objekt-Properties über sogenannte **Setter** bedient. Die `escapeProblematicCharacters` Funktion "baut ein solches Sprungbrett". Würde sie an einer falschen Stelle eingesetzt, kann sie einem Angriff zum Erfolg verhelfen (Auswirkungen können vom Denial-of-Service bis zur Remote-Code-Execution im "Health-Department Frontend" reichen).
+
+Auch diese "Sprungbrett" Funktion soll kurz erläutert werden (Für ausführliche Informationen zum Vektor "Prototype Pollution" empfehle ich eine Internetrecherche. Für Software Projekte der tragweite von Luca, wird solcher Code eigentlich im Rahmen von Sicherheitstests, -audits und Code-Reviews ausgemerzt).
+
+**Exkurs: Prototype Pollution mittels `escapeProblematicCharacters`**
+
+---
+
+JavaScript ist nicht wirklich eine objektorientierte Programmiersprache (OOP). Konstrukte wie "Klassen" oder "Instanzen" von Klassen (Objekte) werden nachgeahmt. Auch das Prinzip der Vererbung wird nachgeahmt. In einer OOP würde eine Klasse den Prototyp eines Objektes dieser Klasse beschreiben. Dieser beinhaltet Attribute ("Properties" in JavaScript) und Methoden ("functions" in JavaScript). Eine Klasse `Auto` könnte bspw. festlegen das jedes Auto ("Instanz" der Klasse) ein Attribut besitzt, welches die Anzahl der Räder als `radCount` speichert (dabei würde auch festgelegt, dass diese Anzahl immer den Typ Ganzzahl hat). Die Klasse `Auto` könnte auch eine Methode wie `Radwechsel` vorgeben, die Veränderungen an den Attributen vornimmt. Entscheidend ist, dass die Klasse nur einmal existiert! Jede Instanz der Klasse (ein Objekt), würde ein tatsächliches Auto repräsentieren. Diese Objekte belegen die vorgegebenen Attribute jeweils mit unterschiedlichen Werten. So kann es ein Objekt `pkw` der Klasse `Auto` geben, welches das Attribut `radCount` mit dem Wert `4` belegt (`pkw.radCount = 4`), aber auch ein Objekt `lkw` der geleichen Klasse, welches das gleiche Attribut mit `8` belegt (`lkw.radCount = 8`). Verschiedene Programmiersprachen setzen dies formal unterschiedlich um, allen gemein ist: Eine Klasse existiert nur **einmal** zentral angelegt, aber es kann (beliebig) viele Instanzen geben, die vorgegebenen Attribute unterschiedlich belegen. Auch die Methoden einer Klasse, werden im Regelfall nur einmal implementiert.
+
+Im Zusammenhang mit der "Prototype Pollution" sind für die JavaScript-Umsetzung von Objekt-Orientierung folgende Dinge wichtig:
+
+1. Eine JavaScript Klasse (`prototype`) kann zur Laufzeit geändert werden. Die Änderungen wirken sich auf alle zukünftigen und bereits bestehenden Instanzen (`objetc`) der Klasse aus.
+2. Jede Klasseninstanz die vom Typ `object` erbt, enthält Attribute, welche auf die Klasse des Objektes verweisen (auf den `prototype`). Da der `prototype` veränderbar ist, können diese Attribute genutzt werden, um zur Laufzeit auf den `prototype` zuzugreifen (über ein entsprechendes Attribut eines `object`) und diesen nachhaltig zu verändern. Die Veränderungen wirken sich auf **alle** Instanzen aus, welche den selben `prototype` nutzen, **wenn dies nicht verhindert wird**. Eines der Attribute, welches für jede Instanz existiert die von der Klasse `object` erbt, und Zugriff auf den `prototype` erlaubt trägt den Namen `__proto__`.
+3. Ein JavaScript `object` verweist nicht nur auf seinen eigenen `prototype`, sondern der `prototype` verweist selbst auf Klassen von denen er geerbt hat. Da jedes JavaScript Objekt von der Klasse `object` erbt, ist es ohne entsprechende Vorkehrungen potentiel möglich, ausgehend von einer beliebigen Objekt-Instanz auf den `prototype` der "Basisklasse" `object` zuzugreifen und diesen zu verändern. Eine solche Änderung würde sich **global** auf alle exitierenden Objekte auswirken. (Wir d hier vernachlässigt, da bereits die Manipulation **einer** Klasse eine beliebigen Types zu unvorhersehbaren Folgen führen kann, je nachdem wie die Instanzen der Klasse weiter verwendet werden)
+
+Ein Kurzbeispiel:
+
+```
+> obj1 = {}
+> obj2 = {}
+> obj1.toString()
+'[object Object]'
+> obj2.toString()
+'[object Object]'
+> obj1.__proto__.toString = function() {return "Klasse 1"}
+[Function]
+> obj1.toString()
+'Klasse 1'
+> obj2.toString()
+'Klasse 1'
+>
+```
+
+Das Beispiel legt zunächst zwei JavaScript-Objekte `obj1` und `obj2` an. Beide Objekte haben Zugriff auf eine Methode (`Function`) namens `toString`. Die Funktion `toString` ist in der Klasse `Object` definiert. Sowohl `obj1`, als auch `obj2` imlementieren Standard-mäßig die Klasse `Object` (da mit der Kurzschreibeweise `{}` Instanzen dieses Typs erzeugt wurden). Die Property `__proto__` erlaubt dabei den Zugriff auf die "Definition" der Klasse `Object` über eine Instanz der Klasse: so kann mittels `obj1.__proto__.toString = ...` die Methode `toString` für die Klassendefinition (für den `prototype`) der Klasse `Object` überschrieben werden. Da hier nicht eine Methode der Instanz, sondern des Prototyps überschrieben wird, wirkt sich dies auch auf `obj2` aus (in diesem Fall sogar auf alle existierenden Objekte im Scope). Die `toString()` Methode welche standardmäßig den String `'[object Object]'` zurückgibt, gibt nun für **alle** Objekte `'Klasse 1'` zurück.
+
+!!! t.b.d. !!!!!!
+(JSON.parse() mit **zu später** Einschränkung möglicher properties in Kombination mit "Setter" Verwendung - wie in escapeProblematicCharacters)
+
+Prototype Pollution in `escapeProblematicCharacters`:
+
+```
+> jsonParsedObject1 = JSON.parse('{"foo": "bar"}')
+{ foo: 'bar' }
+> jsonParsedObject2 = JSON.parse('{"foo": "bar", "__proto__": {"toString":"I am not a function"}}')
+{ foo: 'bar', __proto__: { toString: 'I am not a function' } }
+> jsonParsedObject1.toString()
+'[object Object]'
+> jsonParsedObject2.toString()
+'[object Object]'
+> escapedObject1 = escapeProblematicCharacters(jsonParsedObject1)
+{ foo: 'bar' }
+> escapedObject2 = escapeProblematicCharacters(jsonParsedObject2)
+{ foo: 'bar' }
+> escapedObject1.toString()
+'[object Object]'
+> escapedObject2.toString()
+Uncaught TypeError: escapedObject2.toString is not a function
+>
+```
+
+## 3.6.x SORMAS Rest API (bis zur aktuellen Version `v1.1.16)
+
+Die (Ende Abschnitt 3.4) bereits benannnte Funktion `personsPush` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/network/sormas.js#L35)) ist wie folgt implementiert:
+
+```
+
+const personsPush = (traces, currentTime = Date.now()) =>
+fetch(`${SORMAS_REST_API}/persons/push`, {
+headers,
+method: 'POST',
+body: JSON.stringify(
+traces.map(trace => ({
+uuid: trace.uuid,
+firstName: trace.userData.fn,
+lastName: trace.userData.ln,
+emailAddress: trace.userData.e,
+phone: trace.userData.pn,
+address: {
+uuid: trace.uuid,
+city: trace.userData.c,
+changeDate: currentTime,
+creationDate: currentTime,
+street: trace.userData.st,
+postalCode: trace.userData.pc,
+houseNumber: trace.userData.hn,
+addressType: 'HOME',
+},
+}))
+),
+});
+
+```
+
+Für `userData` Objekte wird weder geprüft ob die erwarteten Properties vorhanden sind (ein Fehlen von keys wie `"fn"`, `"ln"` usw. würde vermutlich einen Crash im "Health Department Frontend" auslösen und die Auswertung von Gästelisten unmöglich machen), noch werden die Daten (Values) vorhandenen Properties geprüft. Durch Luca-Nutzer beliebig gestaltbare Daten, werden hier ungefiltert and die API eines nachgeschalteten Fachverfahrens weitergegeben (welches hoffentlich sauber mit dem Input umgeht).
+
+Um im Bild der Wasserhähne zu bleiben: Es gibt keine Mischbatterien, aber auch keine Durchlauferhitzer mehr. Sie lassen Ihrem Kind trotzdem ein Bad ein, setzen es ohne weitere Prüfung in die Badewanne und hoffen, dass es mit der Temperatur umgehen kann, die Sie gar nicht kennen.
 
 ## notes
 
@@ -637,3 +1140,15 @@ Output Encoding:
 
 - over engineered ... Hybridansatz, obwohl Ressourcen für asymmetrisch
 - [already covered] Schlüsselanhänger Katastrophal (V3)
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
