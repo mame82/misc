@@ -1046,12 +1046,150 @@ Ein Kurzbeispiel:
 >
 ```
 
-Das Beispiel legt zunächst zwei JavaScript-Objekte `obj1` und `obj2` an. Beide Objekte haben Zugriff auf eine Methode (`Function`) namens `toString`. Die Funktion `toString` ist in der Klasse `Object` definiert. Sowohl `obj1`, als auch `obj2` imlementieren Standard-mäßig die Klasse `Object` (da mit der Kurzschreibeweise `{}` Instanzen dieses Typs erzeugt wurden). Die Property `__proto__` erlaubt dabei den Zugriff auf die "Definition" der Klasse `Object` über eine Instanz der Klasse: so kann mittels `obj1.__proto__.toString = ...` die Methode `toString` für die Klassendefinition (für den `prototype`) der Klasse `Object` überschrieben werden. Da hier nicht eine Methode der Instanz, sondern des Prototyps überschrieben wird, wirkt sich dies auch auf `obj2` aus (in diesem Fall sogar auf alle existierenden Objekte im Scope). Die `toString()` Methode welche standardmäßig den String `'[object Object]'` zurückgibt, gibt nun für **alle** Objekte `'Klasse 1'` zurück.
+Das Beispiel legt zunächst zwei JavaScript-Objekte `obj1` und `obj2` an. Beide Objekte haben Zugriff auf eine Methode (`Function`) namens `toString`. Die Methode `toString` ist in der Klasse `Object` definiert. Sowohl `obj1`, als auch `obj2` imlementieren standardmäßig die Klasse `Object` (da mit der Kurzschreibeweise `{}` Instanzen dieses Typs erzeugt wurden). Die Property `__proto__` erlaubt dabei den **Zugriff auf die "Definition" der Klasse** `Object` **über eine Instanz der Klasse**: so kann mittels `obj1.__proto__.toString = ...` die Methode `toString` für die Klassendefinition (für den `prototype`) der Klasse `Object` überschrieben werden. Da hier nicht eine Methode der Instanz, sondern des Prototyps überschrieben wird, wirkt sich dies auch auf `obj2` aus (in diesem Fall sogar auf alle existierenden Objekte im Scope). Die `toString()` Methode welche standardmäßig den String `'[object Object]'` zurückgibt, gibt nun für **alle** Objekte den String `'Klasse 1'` zurück.
 
-!!! t.b.d. !!!!!!
-(JSON.parse() mit **zu später** Einschränkung möglicher properties in Kombination mit "Setter" Verwendung - wie in escapeProblematicCharacters)
+Im Abschnitt 3.4 wurde erläutert, dass JavaScript Objekte welche aus JSON-Strings erzeugt werden (mittels `JSON.parse()`) eine "Prototype Pollution" **vorbereiten** können, wenn vor der Weiterverarbeitung keine Eingabe-Validierung stattfindet. Der Begriff "vorbereiten" deutet an, dass es für JSON-Daten einen weiteren Schritt geben muss, um einen "Prototype Pollution" zu ermöglichen. Warum zwei Schritte nötig sind (für JSON-Daten), soll zum Verständnis ebenfalls erlätert werden.
 
-Prototype Pollution in `escapeProblematicCharacters`:
+```
+> obj1 = JSON.parse('{"__proto__": { "toString": "this is not a function" } }')
+{ __proto__: { toString: 'this is not a function' } }
+> obj1.toString()
+'[object Object]'
+
+> obj2 = { "__proto__": { "toString": "this is not a function either" } }
+{}
+> obj2.toString()
+Uncaught TypeError: obj2.toString is not a function
+```
+
+Im obigen Code-Schnipsel wurde das JavaScript Objekt `obj1` mittels der `JSON.parse()` Funktion erstellt. Die JSON-Daten versuchen dabei, den Prototyp der Objekt-Klasse über die `__proto__` Property zu überschreiben. Das Ziel: Die `toString` Methode - deren Wert eigentlich den Typ `function` hat - mit einenm Wert des Typs `string` zu überschreiben. Würde dies funktionieren, würde der anschließende Versuch die `toString` Methode über `obj1.toString()` aufzurufen, zu einem Fehler führen, da es sich bei `toString` gar nicht mehr um eine aufrufbare `Fucntion` handeln sollte.  
+Das Code-Beispiel zeigt allerdings, dass der Aufruf `obj1.toString()` nach wie vor einen Wert zurückgibt (`'[object Object]'`), statt einen Fehler zu erzeugen.
+
+Im weiteren Verlauf des Code-Beispiels wird genau dieses Vorgehen für ein Objekt namens `obj2` wiederholt. Der Unterschied: Anders als für `obj1` wird `obj2` nicht über `JSON.parse`, sondern "direkt" definiert. Für `obj2` wird beim Versuch `obj2.toString()` aufzurufen auch der Fehler erzeugt, der provoziert werden sollte.
+
+Um den JavaScript-Exkurs nicht zu überdehnen, möchte ich die Erklärung kurz halten:
+
+Für `obj2` wird die Property `__proto__` intern über einen "Setter" angesprochen, man kann sich dies etwa so vorstellen (pseudo Code):
+
+```
+// obj2 = { "__proto__": { "toString": "this is not a function either" } }
+obj2.setPrototypeOf({ "toString": "this is not a function either" })
+```
+
+Die Property `__proto__` existiert nue als "Setter" Funktion, die durch die JavaScript Engine automatisch aufgerufen wird, wenn man versucht `__proto__` einen neuen Wert zuzuweisen. Der eigentliche Wert für `__proto__` wird in einer "versteckten Variable" gespeichert.
+
+Im Gegensatz dazu, wird für `obj1` durch `JSON.parse()` eine Property `__proto__` erzeugt (sozudagen keine "versteckte Variable"). Der "Setter" welcher die "versteckte" Variable belegt, wird dabei gar nicht aufgerufen. Der tatsächliche Wert für dieses Attribut bleibt damit unverändert und wird durch eine neuer Variable namens `__proto__` "überlagert".
+
+Dies spiegeln auch die erzeugten Objekte wieder.
+
+Das Objekt `obj1` besitzt eine sichtbare Property namens `__proto__`, es handelt sich dabei aber nicht um die eigentliche Prototypen-Definition, welche über Getter und Setter angesprochen werden müsste.
+
+```
+> obj1 = JSON.parse('{"__proto__": { "toString": "this is not a function" } }')
+{ __proto__: { toString: 'this is not a function' } }
+```
+
+Das Objekt `obj2` besitzt **keine** sichtbare Property namens `__proto__`. Die Prototypen-Definition ist zwar vorhanden, aber die Getter/Setter sind nicht sichtbar. Bei der Erzeugung von `obj2` wurde aber der Setter für `__proto__` genutzt, um die (unsichtbare) Prototypen-Definition zu überschreiben.
+
+Wenn ich vorher vom "Vorbereiten" einer "Prototype Pollution" gesrochen habe, meine ich trotzdem `obj1`. Auch wenn hier der Prototyp nicht überschrieben werden konnte, existiert hier eine Property namens `__proto__`, deren Wert geeignet wäre die `toString` Methode im Prototyp eines anderen Objektes zu überschreiben. In Pseudo-Code könnte dies etwa so aussehen:
+
+```
+targetObject.setPrototypeOf(obj1.__proto__)
+```
+
+Im Pseudo-Code Beispiel ist `obj1.__proto__` eine Property, die zwar nicht den eigentliche Prototypen-Definition abbildet (kein Getter/Setter), aber von `JSON.parse` mit einem Wert belegt wurde, der in einer Prototypen-Definition die Methode `toString` überschreiben würde. Für das Objekt `targetObject` wird der Setter für die Prototypen-Definition aufgerufen und daher die eigentliche Prototypen-Definition mit dem Wert der Property aus `obj1.__proto__` überschrieben.
+
+Ergebnis: Im Gegensatz zu dem Objekt `obj1`, wurde für das Objekt `targetObject` die `toString` Methode überschrieben, da der Prototyp unter Nutzung eines "Setters" mit einem Wert belegt wurde.
+
+Der zweite Schritt zu eine "Prototyp Pollution" ist also: Mit dem Wert der `__proto__` Property eines Objektes welches aus einem JSON String geparst wurde (der String wird vom Nutzer/Angreifer kontrolliert), die Prototypen-Definition eines weiteren Objektes zu überschreiben. Um einen Effekt zu erzielen, muss dazu der "Setter" des Zielobjektes benutzt werden, welche den Prototyp überschreibt.
+
+Im Pseudo-Code hieß dieser "Setter" `setPrototypeOf`. Der tatsächliche Aufrufername des "Setters" ist allerdings `__proto__`. Und hier wird es verwirrend, daher auch die ausführliche Abgrenzung zwischen "Setter" und "Property" die in einer "versteckten Variable" gespeichert wird.
+
+Zur Verdeutlichung, ein weitere Code-Schnipsel:
+
+```
+> obj1 = JSON.parse('{"__proto__": { "toString": "this is not a function" } }')
+{ __proto__: { toString: 'this is not a function' } }
+> obj1.toString()
+'[object Object]'
+> obj1
+{ __proto__: { toString: 'this is not a function' } }
+
+
+> targetObject = {}
+{}
+> targetObject.toString()
+'[object Object]'
+> targetObject.__proto__ = obj1.__proto__
+{ toString: 'this is not a function' }
+> targetObject.toString()
+Uncaught TypeError: targetObject.toString is not a function
+>
+```
+
+Für `obj1` wird erneut mittels `JSON.parse` eine Property `__proto__` erzeugt, die geeignet ist den Prototypen eines Objektes zu überschreiben (konkret die `toString` Funktion). Für `obj1` findet das Überschreiben aber nicht statt (`obj1.toString()` funktioniert unverändert), weil der Prototyp nicht mittels eines "Setters" platziert wurde.
+
+In der Zeile `targetObject.__proto__ = obj1.__proto__` wird dann für das Objekt `targetObject` der **Setter** für `__proto__` angesprochen, um den Wert der Property `obj1.__proto__` zuzuweisen. In der Folge wird `targetObject.toString()` Methode so überschrieben, dass sie beim Aufruf einen Fehler erzeugt.
+
+Entscheidend:
+
+- `targetObject.__proto__` stellt eine Property dar, die (transparent) von einer Getter oder Setter Funktion angesprochen wird. Die Getter/Setter für `targetObject.__proto__` referenzieren dabei den tatsächlichen Prototyp des Objektes `targetObject`.
+- `obj1.__proto__` stellt eine Property dar, die direkt - also ohne Getter/Setter - angesprochen wird. **Die Property bildet aber nicht den tatsächlichen Prototyp des Objektes**. Ursache hierfür ist die Objekt-Erzeugung durch `JSON.parse`, bei der nie Getter oder Setter für Eigenschaften aus dem JSON-String erzeugt oder angesprochen werden.
+- Auch für den Prototyp von `obj1` existieren Getter und Setter, welche aufgrund der Namensgleichheit zu der neuen Property `__proto__` überlagert werden.
+
+Immer noch kompliziert?! Es wird nicht besser (JavaScript ist eine Sprache mit vielen Fallstricken):
+
+Es dürfte unwahrscheinlich sein, dass Entwickler "Prototype Pollution" fordern, indem Sie mutwillig erlauben, Prototypen in der zu überschreiben indem sie Code wie den folgenden platzieren:
+
+```
+targetObjectExploitMe = {}
+targetObjectExploitMe.__proto__ = <some user provided Object>
+```
+
+Aber, man kann Objekt-Properties in JavaScript auch anders ansprechen:
+
+```
+targetObjectExploitMe = {}
+targetObjectExploitMe["__proto__"] = <some user provided Object>
+```
+
+Der Code drückt genau das gleiche aus wie bisher, nur wird die Property `__proto__` im zweiten Fall nicht mehr in der "punktierten" Schreibweise angesprochen, sondern der Property-Name wird als String in eckigen Klammern übergeben ("property lookup"). Zunächst ist das nur eine formale Änderung der Syntax, aber sie hat einen Zweck. Im gegensatz zur punktierten Schreibweise, erlaubt sie Properties generisch Art und Weise anzusprechen, z.B. wenn der Name einer Property erst zur Laufzeit bekannt ist.
+Gerne wird diese "property lookup" Schreibweise auch benutzt, um die (erst zur Laufzeit bekannten) Properties eines Objektes, ganz oder teilweise, in **gleichnamige** Properties eines anderen Objektes zu kopieren. **Existiert in dem Zielobjekt bereits eine Property des gewünschten Namens, wird dabei deren Wert überschrieben oder - wenn definiert - deren Setter aufgerufen**.
+
+Allen die den Ausführungen bisher folgen konnten, sollte nun ein Licht aufgehen:
+
+JavaScript Code, welcher...
+
+- Properties eines Objektes, ganz oder in Teilen in ein anderes Objekt kopiert
+- dabei die Namen der Properties beibehält
+- **ohne eine Eingabe-Filterung** für Properties vorzunehmen, welche zur Prototypenmanipulation genutzt werden können
+
+... **ermöglicht "Prototype Pollution"-basierte Angriffe**, auch wenn die Input-Objekte mit `JSON.parse` erstellt wurden.
+
+Es gibt eine Vielzahl von Anwendungsfällen, in denen entsprechender Code entstehen kann (wenn keine Sicherheitsreviews oder -audits stattfinden).
+
+Die `escapeProblematicCharacters` aus dem Luca "Health-Department Frontend" der Version v1.1.11 gibt hierfür ein Musterbeispiel.
+
+```
+export function escapeProblematicCharacters(object) {
+  const target = {};
+  Object.entries(object).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      const valueWithReplacedPlus = value.replace('+', '00');
+      target[key] = valueWithReplacedPlus.replace(/^([=-@\t\r])/, "'$1");
+    } else {
+      target[key] = value;
+    }
+  });
+  return target;
+}
+```
+
+1. Die Funktion übernimmt ein beliebiges Objekt mit dem Namen `object` als Paraemeter (in der Praxis handelt es sich hierbei um ein objekt, welches mittels `JSON.parse()` aus Nutzer-kontrollierten Daten enstanden ist)
+2. Der Abschnitt `Object.entries(object).forEach(([key, value]) => { ... <inner code> ...})` iteriert dabei über **alle** Properties des Eingangsobjektes und übergibt den Namen der jeweiligen Property in die Variable `key`, sowie den Wert der Property in die Variable `value`
+3. Für **alle** Properties von `object`, deren Wert nicht vom Typ `string` ist, wird durch den Code `target[key] = value;` im neuen Objekt `target` eine Property mit gleichem Namen angelegt und (ungefiltert) mit dem Wert aus der Variable Value belegt. **Zur Erinnerung: Existiert bereits eine Property mit diesem Namen, wird deren Wert entweder mittels Setter oder direkt überschrieben**.
+
+Zum Abrunden des Bildes, hier ein Beispiel: Die Funktion `escapeProblematicCharacters` vollendet die "Prototype Pollution" (überschreiben der Methode `toString` für `escapedObject2`), welche im Objekt `jsonParsedObject2` vorbereitet wurde. Das Objekt `jsonParsedObject2` wurde dazu mittels `JSON.parse()` aus einem (Nutzer-kontrollierten) String erzeugt, daher konnte die `toString` Methode zunächst nicht direkt überschrieben werden:
 
 ```
 > jsonParsedObject1 = JSON.parse('{"foo": "bar"}')
@@ -1072,6 +1210,92 @@ Prototype Pollution in `escapeProblematicCharacters`:
 Uncaught TypeError: escapedObject2.toString is not a function
 >
 ```
+
+Das Überschreiben der `toString` Methode mit ungültigen Daten, diente in den Ausführungen als Beispiel zur Objektmanipulation über "Prototype" Pollution. In der Praxis werden Objekte so manipuliert, dass **kontextabhängig** ein Effekt erzielt wird. Die Breite an möglichen Auswirkungen ist daher hoch und ebenfalls kontextabhängig (Denial-of-Service, Privilege Escalation, Remote-Code-Execution etc etc etc).
+
+Ich möchte an dieser Stelle daran erinnern, dass wir die Funktion `escapeProblematicCharacters` für einen Teil des Luca-Codes betrachtet haben, der sie innerhalb von der Funktion `filterTraceData` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/utils/sanitizer.js#L32)) aufruft. Wie ausgeführt, findet beim Aufruf von `escapeProblematicCharacters` innerhalb von `filterTraceData` eine Vorfilterung der zulässigen Objekt-Properties statt (mit `loadsh.pick()` - [Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/utils/sanitizer.js#L34)). Diese Filterung entfernt zwar aufgrund des "white listing"-Ansatzes Properties wie `__proto__` aus dem Objekt welches an `escapeProblematicCharacters` übergeben wird, tut dies aber nicht zweckgebunden. Der Vorfilter bezieht sich semantisch auf den Inhalt eines `userData` Objektes, nicht auf die Unterdrückung von "Prototype Pollution". Eine Eingabe-Validierung zur Verhinderung von "Prototype Pollution" müsste stattdessen **innerhalb** der `escapeProblematicCharacters` Funktion platziert werden und Properties mit Bezug zu "Prototype Pollution" unterdrücken (es handelt sich hierbei um eine gut definierte und beschränkte Auswahl von Property-Namen, so dass sogar ein "Black Listing" Ansatz denkbar wäre). Dass eine solche Filterung innerhalb der `escapeProblematicCharacters` unterlassen wird, birgt eine hohe Gefahr Angriffsmöglichkeiten zu schaffen, sobald die Funktion an anderen stellen im Code verwendet wird (die eben kein `userData` Objekt mit gefilterten Properties als Parameter übergeben).
+
+Ein Beispiel in der die Funktion `escapeProblematicCharacters` mit einem **vollkommen ungefilterten** JavaScript Objekt - welches ebenfalls **mittels `JSON.parse()` aus Nutzer-kontrollierten Daten erzeugt** wurde - aufgerufen wird, findet sich hier: [Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/utils/decryption.js#L165). Verwertet werden in diesem Fall die schon erwähnten "additional trace data" Objekte (Vergleiche Abschnitt 1.2 und 1.2.1).
+
+Ein Proof-Of-Concept zur Ausnutzung dieser potentiellen "Prototype Pollution Schwachstelle" wurde nicht ausgearbeitet. **Allerdings zeigt die durchgängige mangelhafte oder überhaupt nicht vorhandene Filterung von Nutzerdaten erneut, dass zahlreiche Ansatzpunkte für ausnutzbare Schwachstellen im Luca-Code existieren (hier im speziellen für den System-Anteil der intern im Gesundheitsamt läuft).**
+
+---
+
+Nach diesem, doch ausfühlichen, Exkurs zu einem anderen Code-Injection-Szenario, möchte ich zur "CSV Injection" zurück kommen. Offen war noch, wie die `escapeProblematicCharacters` dieser Problemstellung begegnet. Da die Funktion bereits mehrfach betrachtet wurde, kann man dies kurz fassen:
+
+Für jede Property des \*\*Datentypes `string` werden reguläre Ausdrücke angewendet, die:
+
+- das erste Zeichen des Property-Wertes durch `"00"` ersetzen, sofern es ein `"+"` war
+- dem ersten Zeichen des Property-Wertes ein `'` voranstellen, sofern es ein `=`, `-`, `@`, `\t` oder `\r` war
+
+```
+    if (typeof value === 'string') {
+      const valueWithReplacedPlus = value.replace('+', '00');
+      target[key] = valueWithReplacedPlus.replace(/^([=-@\t\r])/, "'$1");
+    }
+```
+
+Dass dieser "Filter" keinen ausreichenden Effekt entfalten kann (bezüglich der OWASP Empfehlungen zu CSV-Injection), wird auf den ersten Blick klar:
+
+- der Filter operiert nicht auf Eingabedaten, die einen CSV-Zelleninhalt repräsentieren, sondern auf Eigenschaften von JavaScript-Objekten, welche später von einer externen Library weiterverarbeitet werden
+- der Filter unternimmt keine Anstrengungen weitere Zeichen zu adressieren, die im Ausgabe-Kontext der Zielbibliothek ebenfalls eine Bedeutung haben könnten
+
+Der Filter beantwortet also folgende Fragen für seinen Zielkontext nicht (Zielkontext ist generieren von Eingabedaten für die `react-csv` Bibliothek):
+
+- Übernimmt die Zielbibliothek die Ausgbaekodierung der Daten gemäß RFC4180 oder muss diese hier erfolgen?
+- Betrachtet die Zielbibliothek die Daten überhaupt als Zelleninhalte oder nur als reinen Text der nicht weiter kodiert wird?
+- Beinhaltet das Filter-Objekt Properties, die im Kontext der Zielbibliothek als "Steuerparameter" betrachtet werden (z.B. Optionen um den Zellentrenner zu ändern usw)?
+
+Die Ausführlichkeit dieses Kapitels, soll nicht darüber hinwegtäuschen, dass ein "Threat Actor" sehr schnell zu dem Schluss kommt, dass der Code Angriffe durch CSV-Injection möglich sind. Mit Blick auf den Filter-Code werden ad-hoc Eingabedaten ersichtlich, die diesen unverändert durchlaufen und in der Weiterverarbeitung zu einer ausnutzbaren Schwachstelle führen können.
+
+Einige Beispiele (betrachtet wird nur die `userData.fn` Property, also der Vorname aus den Kontaktdaten, prinzipiell kann aber jedes Attribut der Kontaktdaten genutzt werden):
+
+```
+userData.fn = '"=Formel()"'
+/*
+ * Der String beginnt mit dem Zeichen '"' welches der Filter zunächst zulässt.
+ * Zeichen nach dem ersten Zeichen werden vom Filter nicht mehr betrachtet.
+ * Wenn die externe `react-csv` Bibliothek den String als CSV-Zelle interpretiert
+ * (und nicht als Zelleninhalt,welcher der noch zu escapen ist), findet sich die
+ * Zelle unverändert in der finalen CSV-Ausgabe wieder.
+ * Da die die umschließenden Double Quotes nicht zum Zelleninhalt gehören, sondern
+ * ein Feld mit Inhalt des Typs 'escaped' darstellen (vergleiche RFC4180),
+ * interpretieren Tabellenkalkulationen die Zelle RFC-Konform als '=Formel()' -
+ * also als Formel, welche zur Darstellung der Zelle zu berechnen ist.
+ *
+ * Würde die `react-csv` Bibliothe den Inhalt aber als Feld des Types `non-escaped`
+ * ansehen (vergl RFC4180), müsste der Inhalt innerhalb von react-csv noch
+ * RFC-konform zu einer Zelle kodiert werden. Das Ergebnis wäre:
+ *   """=Formel()""" (Umwandeln von DQUOTES zu 2DQUOTES, Umschließen mit DQUOTES)
+ */
+
+userData.fn = 'Hans",=Formel(),"'
+/*
+ * Der String geht ebenfalls davon aus, das nicht klar ist wie Zellen in der
+ * Weiterverarbeitung kodiert werden und beginnt erneut mit einem erlaubten Zeichen.
+ * Hier wird allerdings versucht eine bestehende zelle zu schließen und eine neue
+ * Zelle einzufügen. In der vorgesehenen Zelle der finalen CSV-Ausgabe, würde dann
+ * noch der Name "Hans" stehen, gefolgt von einer Zelle mit einer Formel. Die
+ * Annahme ist hier, dass alle Zelleninhalte mit DQUOTES umschlossen werden.
+ * Weiter wird von ',' als zellentrenner ausgegangen.
+ */
+
+userData.fn = 'Hans\r\n=Formel()\r\n"'
+/*
+ * Analog zum vorherigen Beispiel wird eine neue Zelle eingefügt.
+ * Stat Zellentrennern werden hier Zeilentrenner verwendet.
+ * Diese wären unabhängig vom gewählten Zellentrenner (welcher statt
+ * eines Kommas auch ein Semikolon oder jedes andere zeichen sein könnte)
+ */
+```
+
+Es wäre mindestens zu betrachten Wie die Daten in der Weiterverarbeitung durch `react-csv` kodiert werden, um diese innerhalb `escapeProblematicCharacters` für die Weiterverarbeitung vorzubereiten (Output-Encoding). Selbst wenn diese Betrachtungen vorgenommen werden, kann der Filter nie robust arbeiten. Zu diesem Zweck müsste er innerhalb der `react-csv` Library platziert werden (dies wurde bereits ausführlich erläutert).
+
+Zusätzlich wurde auf Entwickler-Seite unterlassen zu analysieren, wie die Daten in der Weiterverarbeitung von `react-csv` kodiert werden.
+
+Bei Einnahme der "Angreifer-Perspektive" sind solche tests sehr schnell Möglich (da sie einen engen, selektiven Fokus haben). Ich selbst, habe vom Blick in den `escapeProblematicCharacters` Code bis zur Bestätigung einer funktionierenden CSV Injection etwa 10 Minuten beötigt (Referenzsystem stand bereits bereit, ebenso die Funktion Luca-Nutzer mit beliebigen Daten automatisiert zu registreieren).
+
+Auch ein vollkommen unbedarfter Angreifer, dürfte angesichts der Mängel im Code hier sehr schnell zu Ergebnissen kommen. Die Komplexität und "Verwinkelung" des Codes erschwert aber die Analyse von Ursache-Wirk-Ketten für die Entwickler immens. Ein Problem wie Code Injection als "behoben" oder "ausgeschlossen" anzusehen, ist mit dem aktuellen Code-Design nahezu unmöglich.
 
 ## 3.6.x SORMAS Rest API (bis zur aktuellen Version `v1.1.16)
 
