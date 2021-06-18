@@ -517,7 +517,7 @@ Die beinhaltet auch "nested objects", die z.B. genutzt werden können, um bei ei
 #### Randbemerkung
 
 _Im Kontext des Angriffsvektors "Prototype Pollution" genügt dies allein nicht, da `JSON.parse()` Objekt-Schlüssel wie `__proto__` als reine Property bedient (statt einen `Setter` zu verwenden). Die relevanten Properties, müssten in der weiteren Verarbeitung noch unter Nutzung eines `Setters` in einem JavaScript-Objekt platziert werden._
-**Bemerkenswert ist allerdings, dass der Backend Code (auch in der aktuellsten Version, `v1.1.16` at time of this writing) Nutzer-Input in einer Form verarbeitet, die hierzu als "door opener" dienen kann.** [Link zu Code Beispiel: Durch Location Betreiber frei wählbare Namen für "addititional data" Felder.](https://gitlab.com/lucaapp/web/-/blob/44e9db888015c8188900dc861f5fc69939ed6aab/services/contact-form/src/components/hooks/useRegister.js#L30) _Hier hier wären z.B. Input wie `additionalData-constructor` als Object-key möglich._
+**Bemerkenswert ist allerdings, dass der Backend Code (auch in der aktuellsten Version, `v1.2.1` at time of this writing) Nutzer-Input in einer Form verarbeitet, die hierzu als "door opener" dienen kann.** [Link zu Code Beispiel: Durch Location Betreiber frei wählbare Namen für "addititional data" Felder.](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/contact-form/src/components/hooks/useRegister.js#L30) _Hier hier wären z.B. Input wie `additionalData-constructor` als Object-key möglich._
 
 ### Schritt 3: Abruf der Daten als state von `React` Komponenten (erneuter Kontext-Wechsel)
 
@@ -577,7 +577,7 @@ Trotz dieses engen Betrachtungsfokus, zeigen sich schnell eklatante Mängel im g
 - Ein Blick in den Code von System-Komponenten, welche außerhalb des hier gewählten Betrachtungsfokus liegen, zeigt keine gesteigerte Qualität. Man muss daher annehmen, dass das gesamte System mit Implementierungsmängeln behaftet ist, welche unmittelbar in Sicherheitsrisiken münden.
 - Statt den sicheren Umgang mit Daten von hochgradig-sensitivem Character in gut definierten, sauber ausgestalten und nachvollziehbar implementierten Prozessen abzubilden, vertraut man diese Daten externen Drittanbieter-Bibliotheken an (Beispiele folgen). Hierbei wird die Kontrolle über die **robuste** Datenverarbeitung nicht nur vollständig abgegeben, es sind darüberhinaus keinerlei Tests erkennbar, die sicherstellen könnten, dass die ausgelagerten Funktionalitäten auch die erwarteten Ergebnisse liefern. Dies wiegt umso schwerer, wenn komplexe Drittanbieter-Libraries eingebunden werden, um am Ende nur rudimentäre Teilfunktionalitäten zu nutzen, welche sich innerhalb des Luca-Codes mit geringen Aufwand kontrolliert abbilden liesen. Das fehlende Verständnis für das Paradigma "Security-By-Design" wird hier überdeutlich.
 
-## 3.6 Zusammenfassung: Ungefilterter Input (`userData`), auch in der aktuellesten Luca-Version `v1.1.16`
+## 3.6 Zusammenfassung: Ungefilterter Input (`userData`), auch in der aktuellesten Luca-Version `v1.2.1`
 
 Am Ende des Abschnitts 3.4 wurden einige Output-Kontexte für ungefilterte Kontaktdaten angesprochen.
 
@@ -627,22 +627,27 @@ Ein `userData` Objekt kann also beliebig gestaltet sein, solange die UTF-8 kodie
 
 Im weiteren Verlauf sollen nur noch `userData` Objekte isoliert betrachtet werden (festgelegter Fokus). Der enge Betrachtungsfokus ist der "ungüstig komlexen" Code-Struktur geschuldet, ich kann aber versichern, dass an vielen Stellen im Code ähnliche Mängel auszumachen sind. Diese herauszuarbeiten "is up to the reader".
 
-Bisher wurde nur auf Luca-Code der Version `v1.1.11` verwiesen. Zum Zeitpunkt der Erstellung dieses Dokumentes, ist allerdings die Version `v1.1.16` im Produktionsbetrieb. Version `v1.1.16` (Release vom 02. Juni 2021) beinhaltet zusätzlich alle Patches zur öffentlich diskutierten "CSV Injection" Schwachstelle.
+Bisher wurde nur auf Luca-Code der Version `v1.1.11` verwiesen. Zum Zeitpunkt der Erstellung dieses Dokumentes, ist allerdings die Version `v1.2.1` im Produktionsbetrieb. Version `v1.2.1` (Release vom 02. Juni 2021) beinhaltet zusätzlich alle Patches zur öffentlich diskutierten "CSV Injection" Schwachstelle.
 
 **ABER: Alle bisher gemachten Feststellungen zur fehlenden Eingabe Validierung, treffen analog auf die aktuellste Version des Luca-Systems zu.**
 
-Auch in Version `v1.1.16` werden `userData` nach der Entschlüsselung nicht validiert. Siehe hierzu:
+Auch in Version `v1.2.1` werden `userData` nach der Entschlüsselung nicht validiert. Siehe hierzu:
 
-1. [Code Link v1.1.16 - Entschlüsselung/JSON-Parsing für App Nutzer](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/utils/decryption.js#L121)
-2. [Code Link v1.1.16 - Entschlüsselung/JSON-Parsing für Schlüsselanhänger](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/utils/decryption.js#L46)).
+1. [Code Link v1.2.1 - Entschlüsselung/JSON-Parsing für App Nutzer](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/health-department/src/utils/decryption.js#L122)
+2. [Code Link v1.2.1 - Entschlüsselung/JSON-Parsing für Schlüsselanhänger](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/health-department/src/utils/decryption.js#L47)). Hier wurde lediglich eine zusätzliche Prüfung eingebaut, um festzustellen ob bereits Nutzerdaten hinterlegt sind ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/health-department/src/utils/decryption.js#L44)). Dies hat keinen Einfluss auf die "freie Gestaltbarkeit" der `userData` Objekte, sondern erlaubt Schlüsselanhänger zu erkennen, die noch nicht durch einen Nutzer registriert wurden.
 
-Nach der Entschlüsselung werden die Daten, **noch immer ungefiltert**, durch die React Komponente `ContactPersonView` ([Code Link v1.1.16](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L57)) an die React Komponente `Headers` übergeben ([Code Link v1.1.16](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L92)). Dort dienen die Daten als "Single-Source-of-Thruth" für jedeweitere Verarbeitungen, vollkommen unabhängig vom Ausgabe-Kontext.
+Nach der Entschlüsselung werden die Daten, **noch immer ungefiltert**, durch die React Komponente `ContactPersonView` ([Code Link v1.2.1](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L58)) an die React Komponente `Headers` übergeben ([Code Link v1.2.1](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.react.js#L98)). Dort dienen die Daten als "Single-Source-of-Thruth" für jedeweitere Verarbeitungen, vollkommen unabhängig vom Ausgabe-Kontext.
+
+Zusammenfassend kann man sagen:
+
+Das **"Health-Department Frontend" erstellt JavasScript Objekte (`userData`) aus JSON-Eingabedaten die ausschließlich der Kontrolle nicht vertrauenswürdiger Nutzer unterliegen**. Diese Javascript-Objekte durchlaufen verschiedene Kontexte, **ohne jegliche Filterung** (keine zentrale Eingabe-Validierung, keine Ausgabe-Kodierung). Dies gilt auch noch für die aktuellste Release-Version `v1.2.1`.
+Eine Filterung kann nur noch in den finalen Ausgabekontexten erfolgen. Die bisher fehlende **Eingabe-Validierung, muss dazu redundant, für jeden Kontext implementiert sein**.
 
 ## 3.6.1 Output-Kontext CSV-Export
 
-Vorbemerkung: dieser Abschnitt ist ausfühlich gehalten. Der CSV-Export dient hier als **exemplarisches Beispiel**. Mittels des Beispieles solll analytisch dargelegt werden, dass das Luca-System (Implementierungs-bedingt) externe Eingabedaten **nicht** so filtern kann, dass Angriffe über Nutzereingaben verhindert werden. Obwohl der Abschnitt konkret den Angriffsvekor "CSV Injection" im Kontext der "CSV Export" Funktionalität betrachtet, finden sich die gleichen Fehler in zahlreichen anderen Ausgabe-Kontexten, aber auch in anderen Luca-Systemkomponenten, wieder. Eine Analyse der Zusammenhänge in "voller Tiefe" erfolgt allerdings nur für diesen Abschnitt.
+Vorbemerkung: dieser Abschnitt ist ausfühlich gehalten. Der CSV-Export dient hier als **exemplarisches Beispiel** für wiederkehrende Probleme im Luca-Code. Im speziellen soll analytisch dargelegt werden, dass das Luca-System (Implementierungs-bedingt) externe Eingabedaten **nicht** so filtern kann, dass Angriffe über Nutzereingaben verhindert werden. Dieser Abschnitt betrachtet konkret den Angriffsvekor "CSV Injection" als eine Untermenge von "Code Injection" Angriffen. Dennoch werden hier Programmierfehler angesprochen, welche sich analog in anderen Teilen des Luca-Codes (und anderen Luca-Systemkomponenten) wiederfinden. Diese Fehler "verbreitern" jeweils die Angriffsfläche über "Code Injection"-Schwachstellen.
 
-## 3.6.1.1 Vorbetrachtung Output-Kontext CSV-Export: **Warum Luca bei der Filterung von Nutzerdaten versagen muss** (Definition der Anforderungen an Ein-/asugabefilterung in `v1.1.11`)
+## 3.6.1.1 Vorbetrachtung Output-Kontext CSV-Export: **Warum Luca bei der Filterung von Nutzerdaten versagen muss** (zusätzlich: Definition der Anforderungen an Ein-/ausgabefilterung für `v1.1.11`)
 
 Wie am Ende des Abschnittes 3.4 dargestellt, wird das `traces` Array mit den nicht validierten `userData` Objeketen von der React Komponente `Header` and die React Komponente `CSVDownload` weitergegeben: [Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/Header/Header.react.js#L50)
 
@@ -671,7 +676,7 @@ Die erstellung des CSV-Outputs wird an eine weitere React Komponente `CSVLink` d
 Ohne Funktions- und Sicherheitstests könnte man die Verlässlichkeit solcher externen Libraries eventuell noch grob abschätzen (wenn man denn so etwas wie "Dependency Management" betreibt und dabei "Security" nicht aus den Augen verliert). VErsuch man dies, lässt sich zur `react-csv` Library folgendes feststellen:
 
 - Luca in der Version `v1.1.11` verwendet `react-csv 2.0.3` [(Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.11/services/health-department/package.json#L36)
-- Luca in der aktuellsten Version `v1.1.16` verwendet ebenfalls `react-csv 2.0.3` [(Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/package.json#L38)
+- Luca in der aktuellsten Version `v1.2.1` verwendet ebenfalls `react-csv 2.0.3` [(Code Link)](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/health-department/package.json#L38)
 - `react-csv` hat seit 01. April 2020 keine Updates mehr erfahren, `v2.0.3` war die letzte veröffentlichte Version ([Link](https://github.com/react-csv/react-csv/releases/tag/v2.0.3))
 - Man könnte annehmen, die Library wäre so weit gereift, dass keine Updates mehr nötig sind, aber:
 - Es warten **über 30 Pull Requests**, welche überwiegend **weitere externe Abhängikeiten auf den aktuellen Release-Stand bringen sollen** ([Link](https://github.com/react-csv/react-csv/pulls)). Die "Dependency Hell" kann hier nicht als Entschuldigung dienen. Erneut gibt man grob fahrlässig Verantwortung und Sicherheit auf.
@@ -1289,44 +1294,330 @@ userData.fn = 'Hans\r\n=Formel()\r\n"'
  */
 ```
 
-Es wäre mindestens zu betrachten Wie die Daten in der Weiterverarbeitung durch `react-csv` kodiert werden, um diese innerhalb `escapeProblematicCharacters` für die Weiterverarbeitung vorzubereiten (Output-Encoding). Selbst wenn diese Betrachtungen vorgenommen werden, kann der Filter nie robust arbeiten. Zu diesem Zweck müsste er innerhalb der `react-csv` Library platziert werden (dies wurde bereits ausführlich erläutert).
+Es wäre mindestens zu betrachten Wie die Daten in der Weiterverarbeitung durch `react-csv` kodiert werden, um diese innerhalb `escapeProblematicCharacters` für die Weiterverarbeitung vorzubereiten (Output-Encoding). Aber, selbst wenn man diese Betrachtungen vornehmen würde, kann der Filter nie robust arbeiten. Um robust zu arbeiten, müsste er **innerhalb** der `react-csv` Library platziert werden (wurde bereits ausführlich erläutert).
 
 Zusätzlich wurde auf Entwickler-Seite unterlassen zu analysieren, wie die Daten in der Weiterverarbeitung von `react-csv` kodiert werden.
 
-Bei Einnahme der "Angreifer-Perspektive" sind solche tests sehr schnell Möglich (da sie einen engen, selektiven Fokus haben). Ich selbst, habe vom Blick in den `escapeProblematicCharacters` Code bis zur Bestätigung einer funktionierenden CSV Injection etwa 10 Minuten beötigt (Referenzsystem stand bereits bereit, ebenso die Funktion Luca-Nutzer mit beliebigen Daten automatisiert zu registreieren).
+Ein Akteur der Sicherheitslücken, mit einem so eng definierten Scope (ausschließlich "CSV Injection"), sucht, wird diese Fragestellungen für sich beantworten ... und er wird es schnell tun.
 
-Auch ein vollkommen unbedarfter Angreifer, dürfte angesichts der Mängel im Code hier sehr schnell zu Ergebnissen kommen. Die Komplexität und "Verwinkelung" des Codes erschwert aber die Analyse von Ursache-Wirk-Ketten für die Entwickler immens. Ein Problem wie Code Injection als "behoben" oder "ausgeschlossen" anzusehen, ist mit dem aktuellen Code-Design nahezu unmöglich.
+Hierbei würde er folgendes feststellen:
 
-## 3.6.x SORMAS Rest API (bis zur aktuellen Version `v1.1.16)
-
-Die (Ende Abschnitt 3.4) bereits benannnte Funktion `personsPush` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.16/services/health-department/src/network/sormas.js#L35)) ist wie folgt implementiert:
+Die genutzte `CSVLink` Komponente der `react-csv` Library übernimmnt Eingabedaten als zweidimensionales Array, um Zeilen und Spalten zu repräsentieren. In etwa so:
 
 ```
+tableData = [
+  [valueZeile1Spalte1, valueZeile1Spalte2],
+  [valueZeile2Spalte1, valueZeile2Spalte2],
+]
+```
 
-const personsPush = (traces, currentTime = Date.now()) =>
-fetch(`${SORMAS_REST_API}/persons/push`, {
-headers,
-method: 'POST',
-body: JSON.stringify(
-traces.map(trace => ({
-uuid: trace.uuid,
-firstName: trace.userData.fn,
-lastName: trace.userData.ln,
-emailAddress: trace.userData.e,
-phone: trace.userData.pn,
-address: {
-uuid: trace.uuid,
-city: trace.userData.c,
-changeDate: currentTime,
-creationDate: currentTime,
-street: trace.userData.st,
-postalCode: trace.userData.pc,
-houseNumber: trace.userData.hn,
-addressType: 'HOME',
-},
-}))
-),
-});
+Im Rahmen von Tests wären folgende Fragen zu beantworten:
+
+1. Wie geht die `CSVLink` Komponente mit verschiedenen Datentypen um?
+2. Welche Teile der RFC4180 konformen Ausgabekodierung übernimmt die `CSVLink` Komponente? (Daraus abgeleitet: Welcher Teil der RFC4180 konformen Kodierung ist durch den Luca-Code zu übernehmen?)
+
+**Vor Beantwortung der Fragen, erneut der Hinweis: Der Luca-Code hat nicht die Kontrolle über die Verarbeitung der Daten durch die `react-csv` Library. Für jede Versionsänderung dieser Library (oder einer ihrer Dependencies), wären diese Fragen neu zu beantworten und der Luca-Code entsprechend anzupassen. Auch wiederhole ich gerne, dass es hier nicht nur um "nicht vertrauenswürdigen" - aber ungetesteten - Code aus einer externen Quelle geht, sondern um Code der letztendlich auf Fachsystemen in einem Gesundheitsamt zur Ausführung kommt.**
+
+Für einige ausgewählte Beispiele an Eingabedaten verhält sich die `CSVLink` Komponente wie folgt:
+
+(Eingabedaten jeweils für `<CSVLink data={input} filename="somefile.csv">Download CSV</CSVLink>`)
+
+### Beispiel 1
+
+Input für die `data` property von `CSVLink`:
+
+```
+input = [
+  [{"I": "am an object"}, "i am a string", 1337, -1e500] // Tabellenzeile mit 4 verschiedenen Datentypen
+]
+```
+
+Erzeugte CSV-Ausgabe:
+
+```
+"[object Object]","i am a string","1337","-Infinity"
+```
+
+Feststellung:
+
+`CSVLink` akzeptiert verschiedene JavaScript Datentüben als Werte für spätere Tabellenzellen. Jeder Wert wird in eine `string`-Repräsentation transformiert, für Objekte wird die `toString()` Methode genutzt.
+**In der CSV-Repräsentation werden alle Werte mit DQOUTEs (`"`) umschlossen. Gemäß RFC4180 bedeutet dies, dass die Zellinhalte vom Typ `encoded` sind, daher kann in der Weiterverarbeitung davon ausgegangen werden, dass für nicht zulässig Zeichen ein escaping stattgefunden hat** (vergleiche Abschnitt 3.6.1.1).
+
+---
+
+### Beispiel 2
+
+Input für die `data` property von `CSVLink`:
+
+```
+input = [
+  [["i","am","an","array"]], // Tabellenzeile mit Feld des Typs Array
+  [["nested",["inner","array"]]], // Tabellenzeile mit geschachteltem Array als Feld
+]
+```
+
+Erzeugte CSV-Ausgabe:
+
+```
+"i,am,an,array"
+"nested,inner,array"
+```
+
+Feststellung:
+
+Für JavaScript Arrays werden die Einträge zunächst in Strings transformiert (analog zu Beispiel 1) und anschließend zu einem Kommaseparierten String zusammengeführt ("join"). Das Ergebnis wird erneut mit DQUOTEs umschlossen (impliziert `encoded` Zelleninhalt gem. RFC4180).
+
+---
+
+### Beispiel 3
+
+Input für die `data` property von `CSVLink`:
+
+```
+// Tabellenzeile mit EINEM welches Zeichen enthält die nach RFC4180 zu kodieren sind
+input = [
+  ["eine,zelle,mit \"encoded\" chars"]
+]
+```
+
+Erzeugte CSV-Ausgabe:
+
+```
+"eine,zelle,mit "encoded" chars"
+```
+
+Feststellung:
+
+Das Ergebnis wird erneut mit DQUOTEs umschlossen, allerdings wird die implizierte Kodierung nach RFC4180 nicht von `react-csv` übernommen. Die zu erwartende Ausgabe gem. RFC4180 wäre `"eine,zelle,mit ""encoded"" chars"`. Im speziellen wird hier kein "escaping" von DQUOTES (`"`) zu 2DQUOTES (`""`) vorgenommen. Die wäre demnach vom Luca-Code, im Rahmen der Ausgabe-Kodierung vür die `CSVLink` Komponente, sicherzustellen.
+
+---
+
+Die ausnutzbare Schwachstelle wird damit Augenscheinlich. Ein `userData` Objekt der Form ...
+
+```
+{
+  "fn": "Max",
+  "ln": "Mustermann\", \"=Formel(param1, param2)\", \"",
+  "pn": "0017612345678",
+  ...
+}
+```
+
+... würde, mangels Filterung der Daten für den Ausgabe-Kontext `CSVLink` zu folgenden Eingabe-Daten ...
+
+```
+input = [
+  ["Max", "Mustermann\", \"=Formel(param1, param2)\", \"", "0017612345678", ...],
+  ...
+]
+```
+
+... und nach der Weiterverarbeitung durch die `CSVLink`Komponente zu folgenden CSV-Daten:
+
+```
+"Max", "Musterman", "=Formel(param1, param2)", "", "0017612345678"
+```
+
+Diese CSV-Daten würden beim Import in eine Tabellenkalkulation folgerichtig die Berechnung der Formel `=Formel(param1, param2)` zur Folge haben (wie in den OWASP Empfehlungen erläutert, die umschließenden DQUOTEs werden dabei gem. RFC4180 nich als Bestandteil des Zelleninhaltes interpretiert).
+
+Dies unterstreicht einmal mehr, dass der `escapeProblematicCharacters` logisch falsch positioniert ist, den er müsste einen Anteil der RFC4180-Kodierung übernehmen (Escaping von `"` zu `""`), während die nachgeordnete React Komponente `CSVLink` den zweiten Teil der Kodierung übernimmt (Umschließen des kodierten Inhaltes mit DQUOTES). Diese beiden Aspekte der RFC4180-Kodierung sind aber untrennbar (atomar) und können gar nicht über verscheidene Software-Produkte verteilt werden (ob ein "Enclosing" mit DQUOTEs vorzunehmen ist, hängt davon ab, ob im Zelleninhalt überhaupt Zeichen vorkommen die zu "escapen" sind).
+
+Vor allem aber zeigt sich hier nicht nur überdeutlisch, wie gefährlich es ist Sicherheits-kritische Funtionalitäöt an (nicht vertrauenswürdigen) externen Code auszulagern, sondern dass **KEINE Ressourcen in "Testing" investiert** wurden. Dies trifft nicht nur auf den "Spezialfall CSV Injection" zu, sondern auf die gesammte Verarbeitungskette nicht vertrauenswürdiger Daten, welche im Luca-System von externen Teilnehmern auflaufen.
+
+Aus der Perspektive eines "Threat Actors" sind solche Tests allerdings sehr schnell durchführbar, denn es kann gezielt auf eine relevante Auswahl möglicher Angriffsvektoren getestet werden. Im Gegensatz dazu muss auf Entwicklerseite **jedes** Angriffszenario mit Tests abgedeckt, um mit "Sicherheit" werben zu können. Das Luca-System unterlässt solche Tests weitestgehend, was sich auch in der Programmier-technischen Umsetzung stark wiederspiegelt.
+
+Für das Szenario "CSV Injection" betrug die Zeitspanne vom ersten Blick in den `escapeProblematicCharacters` Code bis zum Test und der Bestätigung einer ausnutzbaren "CSV Injection"-Schwachstelle etwa 10 Minuten (Referenzsystem stand bereits bereit, ebenso konnten Luca-Nutzer mit beliebigen Daten bereits automatisiert zu registrieren). Der Aufwand der auf der anderen Seite betrieben werden muss, um das Risiko von "Code Injection" Angriffen zu minimieren, lässt sich anhand des Umfangs der hier gemachten Ausführungen erahnen (obwohl sie nur einen "Datenstrom" betrachten).
+
+Auch ein durchschnittlich befähigter Angreifer dürfte, angesichts der vielzahl Mängel im Code, sehr schnell zu verwertbaren Ergebnissen kommen. Die Komplexität und "Verwinkelung" des Codes erschwert aber die Analyse von Ursache-Wirk-Ketten für die Entwickler immens. Ein Problem wie Code Injection als "behoben" oder "ausgeschlossen" anzusehen, ist mit dem aktuellen Code-Design nahezu unmöglich.
+
+## 3.6.1.1 Updates zur Mitigation von "CSV Injection" (bis `v1.2.1`)
+
+Nachdem der Hersteller (auch öffentlich) damit konfrontiert, dass das Luca-System Angriffe durch Nutzer auf angebundene Gesundheitsämter über den "CSV Injection"-Vektor nicht verhindert. Dies wurde unter Verweis auf die Umsetzung der OWASP Empfehlungen negiert (vergleiche Abschnitt 3.3).
+
+Dass derartige Aussagen durch den Luca-Hersteller auch getroffen werden, ohne dass die entsprechenden Funktionalitäten getestet werden, war zu diesem Zeitpunkt schon offensichtlich.
+
+Vor dem Hintergund des "Responsible Disclosure" Prozesses, musste man sich an dieser Stelle Fragen, wie man, vor diesem Hintergrund, mit dem Wissen um eine ausnutzbare Sicherheitslücke umgeht, der laut Hersteller bereits mit den richtigen Maßnahmen begegnet wird.
+
+Dem "üblichen Prozedere" folgend, hätte man hierzu ein Proof-of-Concept (PoC) erstellen und dem hersteller bereitstellen können, welches **ein oder zwei** konkrete Beispiele zur ausnutzung der Schwachstelle liefert. Ein solches PoC könnte aber in keinem Fall die gesammte Kette an Fehlern in der Ein- und Ausgabefilterung abbilden, oder gar weitere Systemkomponenten abdecken. Vor allem aber, wäre nicht zu erwarten gewesen, dass der Hersteller die Problemstellungen ganzheitlich betrachtet (gesammte Datenverarbeitungskette) oder gar hinreichende Funktions- und Sicherheitstests etabliert.
+
+Entlang der Entfahrungen aus der Vergangenheit, wäre bei diesem Hersteller eher zu erwarten, dass eine sehr spezifische Möglichkeit einen Angriff durchzuführen, mittels Patch unterbunden wird, ohne das 'Problem zu analysieren oder die "Lösung" umfassend zu testen. Umfasssende Tests müssten hier unweigerlich zur Neugestaltung größerer Systemanteile führen. Auch dieser Aspekt wäre - in Art und Umfang - weder über einem PoC noch über ein Advisory geeignet an den Hersteller zu kommunizieren gewesen.
+
+Demgegenüber stand das hohe Sicherheitsrisiko, dem die Gesundheitsämter über 3 Wochen seit dem öffentlichen Bekanntwerden der Code-Injection-Anfälligkeiten ausgesetzt waren.
+
+Die Bereitstellung eines PoC an den Hersteller hätte also dem **verantwortungsbewussten** Umgang mit bekannten Sicherheitslücken wiedersprochen, insbesondere mit Blick auf den "Responsible Disclosure" Prozess. Ebenso, schloss sich die Veröffentlichung von nutzbaren Schadcode aus.
+
+Um das Problem also in das Bewusstsein zu rücken und zu erzwingen, dass die beworbene Funktionalität zur Verhinderung von "CSV Injections" durch den Hersteller getestet und **funktional** gestaltet wird, wurde die Durchführbarkeit eines Angriffes exemplarisch demonstriert ([Video Link](https://vimeo.com/558459255)). Obwohl die Schwachstelle bereits öffentlcih bekannt war, wurde hier großer Wert drauf gelegt, dass kein funktionierender Schadcode bekannt wird.
+
+Die Erwartung, dass der Hersteller nun Tests ansetzt, welche Fehler in der Ein- und Ausgbaeverarbeitung von nicht vertrauenswürdigen Daten im Luca-System aufdecken, um diese dann abzustellen (verifiziert durch weitere Tests) wurde enttäuscht:
+
+Etwa **2 Stunden nach Veröffentlichung** der Video-Demonstration wurde ein Patch veröffentlicht ([Link](https://gitlab.com/lucaapp/web/-/commit/d671d978f59507b8b25ea46381133eb249df111c)) und damit einhergehend eine Pressemitteilung. In der Mitteilung wurde kund gegeben, das man `"...heute von einem möglichen Missbrauch im Zusammenhang mit der Verwendung von luca und Microsoft Excel erfahren..."` habe und `"...böswillige Angreifer:innen diese Excel Lücke nicht mehr ausnutzen können..."`.!
+
+Ich orientiere mich vorzugsweise an technisch belegbaren Fakten (Code), aber folgendes ist auch ein Fakt:
+
+Es existiert **keine seriöse Firma**, die:
+
+- Sicherheits- und Privacykritische Software entwickelt
+- eine Sicherheitslücke von der sie **"heute"** erfahren hat
+- welche, der Einschätzung nach, von einem nachgeordneten System mitverantwortet wird ("Excel")
+- innerhalb von **2 Stunden**:
+  1.  Bewertet (serverity)
+  2.  Die Existenz der Lücke bestätigt (acknowledgement)
+  3.  Ursachen vollumfänglich analysiert (investigate, auch mittels "Testing")
+  4.  Einen Patch entwickelt
+  5.  Dessen "Rollout" priorisiert (gem. impact)
+  6.  Den Patch in einer Referenzumgebung ausrollt (fix)
+  7.  "Nebenwirkungen" und Wirksamkeit des Patches überprüft (Entwicklung ergänzender Tests)
+  8.  Den Patch anschließend koodiniert im Produktionssystem ausrollt (deployment)
+  9.  die Wirksamkeit erneut testet und validieren läst
+  10. ... und **dann** mitteilt, dass das Sicherheitsproblem mitigiert wurde
+
+Das nun bereitgestellte Update ([v1.1.12 - Link](https://gitlab.com/lucaapp/web/-/commit/d671d978f59507b8b25ea46381133eb249df111c)), griff zwar CSV-Injection auf, zeigte aber klar:
+
+- die spezifischer Problemstellung (CSV Injection) wurde nicht ausreichend durchdrungen
+- die grundsätzliche Problemstellung (umfassende Filterung nicht vertrauenswürdiger Daten, **überall**), wurde nicht einmal betrachtet
+- es erfolgen keine **aussagekräftigen** Tests
+
+Folgende Anpassungen wurden vorgenommen:
+
+### Vorgenommene Anpassungen im ersten Patch (`v1.1.12`)
+
+Zunächst einmal wurde die `filterTraceData` durch eine Funktion `sanitizeForCSV` ersetzt ([Code Link](https://gitlab.com/lucaapp/web/-/commit/d671d978f59507b8b25ea46381133eb249df111c#76faa0dbfb936517acc6e375a4fa6a2f0be5c1be_19_3)).
+
+Hier zeigt sich bereits in der Namensgebung, warum Probleme entstehen, wenn man Eingabefilterung (Validierung nach Eingabekontext) und Ausgabefilterung (Kodierung für Ausgabekontext) nicht voneinander trennt.
+
+Die Funktion `filterTraceData` hatte dem Namen nach noch die Aufgabe, Arrays, bestehend aus entschlüsselten `Traces` zu filtern. Jeder Trace enthält dabei ein nicht vertrauenswürdiges JavaScript Objekt `userData`, welches von Nutzern beliebig gestaltet werden kann (da keine weiteren Filter vorgeschaltet sind).
+
+Bei der Funktion `sanitizeForCSV` handelt es sich dem Namen nach allerdings um einen Ausgabefilter, für den Zielkontext "CSV". **Spoiler**: Der tatsächliche Zielkontext ist noch immer eine externe ReactJS Library, für die keine Tests veröffentlicht wurden.
+
+Die beiden Filter müssten also ergänzend existieren, um wenigstens für einen "Verarbeitungszweig" von nicht Vertrauenswürdigen Daten, eine adäquate Filterung anzustreben. Hier wird ersetzt aber ein Filter den anderen.
+
+Wenig überraschend, entfällt damit auch die - ohnehin nur rudimentäre - semantische Filterung von `userData` Objekten, welche sichergestellt hat, dass das JavaScript Objekt nur "erwünschte" Properties enthält ([Code Link](https://gitlab.com/lucaapp/web/-/commit/d671d978f59507b8b25ea46381133eb249df111c#76faa0dbfb936517acc6e375a4fa6a2f0be5c1be_20_25)).Nun gut, diese, eigentlich zentral anzusetzende, Filterung wurde nur in einigen wenige Ausgabekontexten angesetzt. Mit dem Update existiert sie überhaupt nicht mehr.
+
+Ihrem Namen entsprechend wird die neue Funktion `sanitizeForCSV` nicht mehr zentral angewendet (auf Arrays von `traces` die `userData` Objekte enthalten), sonder dort wo man vermeintlich CSV-Ausgabedaten produziert: Nämlich für jeden Wert, der von `react-csv` später in eine CSV-Tabellenzelle transformiert werden soll ([Code-Beispiel 1](https://gitlab.com/lucaapp/web/-/blob/v1.1.12/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L232), [Code-Beispiel 2](https://gitlab.com/lucaapp/web/-/blob/v1.1.12/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L436)).
+
+Die nun ergänzten Tests für diesen Spezialfall ([Code Link](https://gitlab.com/lucaapp/web/-/blob/d671d978f59507b8b25ea46381133eb249df111c/services/health-department/src/utils/sanitizer.test.js)), sind nicht nur äußerst spartanisch, sie unterstreichen eines zusätzlich: Man hat weder "CSV Injection" als Problem durchdrungen, noch ist man sich über den Datenfluss im eigenen Software-Projekt im klaren, denn: **Ob CSV-Daten erzeugt die den OWASP Empfehlungen gerecht werden, muss an der CSV-Ausgabe getestet werden. Konkret an den Ergebnissen, welche die `CSVLink` Komponente der `react-csv` Library ausgibt.** Hier wird aber ausschließlich die neue `sanitizeObject` getestet (welche intern die `sanitizeForCSV` Funktion verwendet). Auch ist die Testabdeckung so reduziert, dass nichteinmal die wenigen Zeichen abgedeckt sind, die gemäß der OWASP-Empfehlungen al problematisch für CSV-Ausgaben gelten. So fehlt zum Beispiel das `@` in den Tests.
+
+Was man nur noch als "schlechten Witz" bezeichnen kann: **Die `sanitizeObject` Funktion, welche Gegenstand der Tests ist, kommt im Code außerhalb der Tests gar nicht zum Einsatz ([Gitlab Link](https://gitlab.com/search?search=sanitizeObject&group_id=11548988&project_id=25881780&scope=&search_code=true&snippets=false&repository_ref=v1.1.12&nav_source=navbar))!**
+
+Schaut man sich nun die Funktion `sanitizeForCSV` an, wird der Nachteil von "Sanitization" gegenüber "Ein- und Ausgabefilterung" nochmals deutlich. Das in den "Tests" unterschlagene Zeichen `@` gibt hier ein sehr gutes Beispiel. Zunächst aber der Quellcode der `sanitizeForCSV` Funktion ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.12/services/health-department/src/utils/sanitizer.js#L3)):
+
+```
+export const sanitizeForCSV = value => {
+  if (
+    typeof value === 'number' ||
+    typeof value === 'undefined' ||
+    typeof value === 'boolean' ||
+    value === null
+  )
+    return value;
+  if (typeof value === 'object') return mapValues(value, sanitizeForCSV);
+  const sanitizedString = value
+    .replaceAll(
+      /[^0-9A-Za-zçæœŒßäëïöüÿãñõâêîôûáéíóúýàèìòùÄËÏÖÜŸÃÑÕÂÊÎÔÛÁÉÍÓÚÝÀÈÌÒÙÇÆŒŒ]+/gi,
+      ' '
+    )
+    .replaceAll(
+      /DROP|DELETE|SELECT|INSERT|UPDATE|TRUNCATE|FROM|JOIN|CREATE/gi,
+      ' '
+    )
+    .replaceAll(/[\n\r]/g, ' ')
+    .replaceAll('"', '""')
+    .replace(/^\+/, "'+");
+
+  const forbiddenLeadingSigns = ['=', '-', '@', '\t'];
+
+  return forbiddenLeadingSigns.includes(sanitizedString?.charAt(0))
+    ? sanitizeForCSV(sanitizedString.slice(1))
+    : sanitizedString;
+};
+
+export const sanitizeObject = object => mapValues(object, sanitizeForCSV)
+```
+
+Der Code der `sanitizeObject` Funktion wurde ebenfalls eingeblendet, um aufzuzeigen, dass es sich hier einmal mehr um eine redundante Funktionalität handelt, denn diese Funktion greift auf `sanitizeForCSV` zurück, obwohl `sanitizeForCSV` genau den gleichen Code imlementiert:
+
+```
+if (typeof value === 'object') return mapValues(value, sanitizeForCSV);
+```
+
+Bei der obigen Codezeile, handelt es sich um einen rekursiven Aufruf der `sanitizeForCSV` Funktion, für alle Properties eines Eingabe-Objektes. Da die Eingabe Objekte vom Nutzer beliebig gestaltbar sind (zur Erinnerung: die Funktion wird auf Properties des nicht-vertrauenswürdigen `userData` Objektes angewendet), können die Eingabedaten beliebig Tief verschachtelte Objekte enthalten. Laufzeitfehler bei der rekursiven Abarbeitung sind also "vorprogrammiert".
+
+Der Umstand, dass hier überhaupt andere Typen als `number` und `string` zulässig sind, zeugt von der groben Missachtung des Kontextes in welchem der Filter Eingesetzt wird: Als (valide) Eingaben kommen nur diese Datentypen in Betracht, valide Ausgaben sind immer vom Typ `string` (zur Weitergabe an `react-csv`). Da an anderer Stelle keine Eingabevalidierung mehr erfolgt müsste diese allerdings hier vorgenommen werden.
+
+Das "Durchreichen" von verschachtelten Objekten oder Objekten überhaupt ist nicht nur im tatsächlichen Ausgabekontext des externen React Moduls problematisch (Stichwort "Client Side Template Injection"). Die Funktion kommt auch vollkommen Kontextfremd zum Einsatz, Beispielsweise bei der Ausgabefilterung für Excel-Exporte welche **nicht im CSV-Format** erfolgen ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.1.12/services/health-department/src/components/App/modals/HistoryModal/ContactPersonView/ContactPersonView.helper.js#L65)).
+
+Die tatsächlichen Filteregelungen, basierend auf regulären Ausdrücken, kommen nur für Werte des Typs `string` zur Anwendung. Gewählt wird hier ein "Whitelisting Ansatz", (nur folgende Zeichen sind zulässig (als regulärer Ausdruck beschrieben):
+
+```
+[0-9A-Za-zçæœŒßäëïöüÿãñõâêîôûáéíóúýàèìòùÄËÏÖÜŸÃÑÕÂÊÎÔÛÁÉÍÓÚÝÀÈÌÒÙÇÆŒŒ]
+```
+
+Wie angekündigt wird hier das Problem eines Sanitizers offensichtlich: Das `@` ist für Eingabedaten, wie Email-Adressen, erwünscht. Im CSV-Kontext ist das `@` aber für **Zelleninhalte** verboten. Mit Ein- und Ausgabefilterung an den richtigen Stellen, wäre dies unproblematisch zu handhaben (vergleiche Abschnit 3.6.1.1 - Pseudocode Beispiel). Ein Sanitizer, der generisch arbeitet, muss das Zeichen `@` unterdrücken und schränkt damit mögliche Eingaben unnötig ein, obwohl sie valide wären. Eine Email-Adresse würde diesen Filter nicht mehr in verwertbarer Form durchlaufen.
+
+Insbesondere aber, habe ich angeführt, dass Sanitizer nur schwierig korrekt implementiert werrden können (aufgrund des generischen Ansatzes). Auch dieser Sanitizer versagt bezogen auf die Filterung für CSV Injections vollkommen. Für Eingabe-Objekte werden zwar die Property-Values gefiltert, nicht aber die Property-Keys (welche im finalen CSV-Output ebenfalls zum Tragen kommen, z.B. für "additional trace data").
+
+Ein Beispiel (das Zeichen `=` wird für Property-Keys nicht gefiltert):
+
+```
+> sanitizeForCSV({"=UnfilteredFormula()":"=FilteredFormula()"})
+{ '=UnfilteredFormula()': ' FilteredFormula ' }
+```
+
+**Der Filter ist damit absolut wirkungslos, wurde aber dennoch - ohne jegliche Tests - in verschiedensten öffentlichen Mitteilungen als funktionierende Lösung "verkauft".**
+
+Auf eine weitere Demonstration, der nach wie vor bestehenden Angreifbarkeit des Systems über CSV-Injections wurde verzichtet! Das Etablieren hinreichender Tests wären hier klare Augabe des Herstellers.
+
+Die Unterdrückung vollkommen CSV-Kontextfremder Zeichenketten, bedarf kaum der weiteren Kommentierung, ist aber ebenfalls Zeugnis des mangelndem Problembewusstseins. Folgende Zeichenketten wurden (case-insensitive) unterdrückt:
+
+```
+/DROP|DELETE|SELECT|INSERT|UPDATE|TRUNCATE|FROM|JOIN|CREATE/gi
+```
+
+Für Menschen die "Frommann" heißen, würde der Nachteil von Sanitizern ebenfalls schnell klar:
+
+```
+> sanitizeForCSV({"fn": "Max", "ln": "Frommann"})
+{ fn: 'Max', ln: ' mann' }
+```
+
+Zusammenfassen kann man den Patch wie folgt:
+
+- Eingabefilter wurden ersatzlos entfernt (semantische Validierung von `userData` an einigen Stellen)
+- der Neue Ausgabe-Filter verfehlt seine Wirkung (keine effektive Unterdrückung von CSV Injection)
+- bisherige Filter waren nicht an allen relevanten Stellen platziert - die neuen Filter sind dies auch nicht, werden aber zusätzlich im falschen Kontext verwendet (`SanitizeForCSV` für Excel Exporte (`xlsx`))
+
+
+
+## 3.6.x SORMAS Rest API (bis zur aktuellen Version `v1.2.1`)
+
+Die (Ende Abschnitt 3.4) bereits benannnte Funktion `personsPush` ([Code Link](https://gitlab.com/lucaapp/web/-/blob/v1.2.1/services/health-department/src/network/sormas.js#L35)) ist wie folgt implementiert:
+
+```
+  const personsPush = (traces, currentTime = Date.now()) =>
+    fetch(`${SORMAS_REST_API}/persons/push`, {
+      headers,
+      method: 'POST',
+      body: JSON.stringify(
+        traces.map(trace => ({
+          uuid: trace.uuid,
+          firstName: trace.userData.fn,
+          lastName: trace.userData.ln,
+          emailAddress: trace.userData.e,
+          phone: trace.userData.pn,
+          address: {
+            uuid: trace.uuid,
+            city: trace.userData.c,
+            changeDate: currentTime,
+            creationDate: currentTime,
+            street: trace.userData.st,
+            postalCode: trace.userData.pc,
+            houseNumber: trace.userData.hn,
+            addressType: 'HOME',
+          },
+        }))
+      ),
+    });
+
 
 ```
 
@@ -1364,15 +1655,3 @@ Output Encoding:
 
 - over engineered ... Hybridansatz, obwohl Ressourcen für asymmetrisch
 - [already covered] Schlüsselanhänger Katastrophal (V3)
-
-```
-
-```
-
-```
-
-```
-
-```
-
-```
