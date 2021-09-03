@@ -54,13 +54,13 @@ For a Deep-Link-host-component of `STREET_VIEW` the app logic creates an Intent 
 
 The interesting part, of course, is the URL string which ends up in `intent_extra_url`, which gets requested and rendered by the `ZalandoWebView`. This value gets constructed by a concatenation of the string `"https://en.zalando.de"` and the value **of the query parameter `path` from the Deep Link.**
 
-So for the Deep Link `zalando://STREET_VIEW?path=/index.html` the create `intent_extra_url` would be formed as: 
+So for the Deep Link `zalando://STREET_VIEW?path=/index.html` the resulting `intent_extra_url` would be constructeded as: 
 
 ```
 https://en.zalando.de/index.html
 ```
 
-This causes an issue, because the `/`, which serves as delimiter between the host-component and the path-component of the resulting URL, **is expected to be part of the value of the query parameter `path`. Omitting this delimiting character would lead to unexpected results.
+This causes an issue as the `/`, which serves as delimiter between the host-component and the path-component of the resulting URL, **is expected to be part of the value of the query parameter `path`. Omitting this delimiting character, leads to unexpected results.
 
 For example a Deep Link `zalando://STREET_VIEW?path=foo` would get translated to the following URL, with an invalid hostname:
 
