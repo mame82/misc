@@ -199,7 +199,7 @@ if (url.getHost().contains("zalando")) {
 
 The problem is pretty obvious. Instead of validating the full host name, all hosts **containing** "zalando" fulfill these condition (not case sensitive).
 
-This applies to hosts like `FrantAlanDora.de`, as well as to hosts from earlier examples, like `en.zalando.de.attacker.host`.
+This applies to hosts like `FranzAlanDora.de`, as well as to hosts from earlier examples, like `en.zalando.de.attacker.host`.
 
 Combined with the first two vulnerabilities, this allows easy information extraction, which could further support extended exploit chains.
 
