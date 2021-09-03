@@ -24,7 +24,7 @@ Relevant excerpt `AndroidManifest.xml`:
         </activity>
 ```
 
-Ultimately the host-part and path path of Deep Links matching this scheme have to be handled by the application logic. Inspecting the code of the app, uncovers various Deep Link formats, which could trigger actions. A few examples:
+Ultimately the host-part and path-component of Deep Links matching this scheme, have to be handled by the application logic. Inspection of the app code uncovers various Deep Link formats, which could trigger actions. A few examples:
 
 ```
 zalando://CUCA_CHAT...
@@ -34,7 +34,7 @@ zalando://WISHLIST...
 zalando://DIGITAL_GIFT_CARDS_EMAIL...
 ```
 
-These examples show, that the App uses the **host part** of the deep links, in order to route to different application components, while no global (OS based) filters are applied to this part in the Manifest-file. Ultimately, the application logic gets responsible to sanitize/filter the host part of Deep Link URLs, but fails on this. The same is true for the path-component of Deep Link URLS. This results in issues which I cover in this report.
+These examples show, that the App uses the **host part** of the deep links, in order to route to different application components, while no global (OS-based) filters are applied to this part in the Manifest file. Ultimately, the application logic gets responsible for sanitization/filtering of the host-component of Deep Link URLs. Unfortunately, the logic fails on this. The same is true for the path-component of Deep Link URLs. This results in issues which I cover in this report.
 
 ## 1. Deep Link vulnerability 1: `zalando://STREET_VIEW`
 
@@ -46,7 +46,7 @@ The expected Deep Link URLs look something like this:
 zalando://STREET_VIEW?path=<target path>
 ```
 
-For a Depp-Link-host-component of `STREET_VIEW` the app logic creates an Intent for the Activity `de.zalando.mobile.ui.webview.WebViewWeaveActivity`. The intent carries the following Extras:
+For a Deep-Link-host-component of `STREET_VIEW` the app logic creates an Intent for the Activity `de.zalando.mobile.ui.webview.WebViewWeaveActivity`. The intent carries the following Extras:
 
 - `intent_extra_title`: title which should be shown by the activity (`"Street it all"` in this case )
 - `show_street_view`: boolean, set to `true`
