@@ -10,10 +10,10 @@ Reasons not to decompress ZSTD with custom dicts:
 The custom dicts are context specific (target service, target endpoint, dict version etc etc) and would have
 to be available for all possible use-case. This is almost impossible to do from the perspective of a central
 interception proxy, which has only limited awareness of the setup of the requesting clients (in fact, the
-proxy can't no the proper decompression dictionary to use, unless it gets transmitted along - doing so would
+proxy can't know the proper decompression dictionary to use, unless it gets transmitted along - doing so would
 counter the effect of dictionary based ZSTD compression and is unlikely to happen in the wild).
 Also, this demo should show, that there is not enough "wire information" to safely conclude on the proper dictionary
-to use. This addon is limited to the following criteria, in order to deploy decompression (with a hardcoded dcitionary):
+to use. This addon is limited to the following criteria, in order to deploy decompression (with a hardcoded dictionary):
 
 - request endpoint is 'https://graph.facebook.com/graphql'
 - a header indicating usage of ZSTD compression is included in the response ('content-encoding: x-fb-dz')
@@ -31,7 +31,16 @@ I left a comment on how to do this (for Facebook traffic) in the following mitmp
 
 https://github.com/mitmproxy/mitmproxy/issues/4394#issuecomment-957459382
 
-Run this add-on with:
+In short words, it would be easier to replace request headers like
+	'accept-encoding:    x-fb-dz;d=1, zstd, gzip, deflate'
+which prefer zstd compression (with unknown dictionary #1), with
+	'accept-encoding:    gzip, deflate'
+which prefers 'gzip' compression (automatically handled by mitmproxy).
+Easy as that.
+
+
+
+To run this add-on use (bypassing cert pinning is up to you):
 # mitmproxy -s /path/to/fb-zstd.py
 """
 
